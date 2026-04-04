@@ -50,6 +50,11 @@ export default {
           "0%, 100%": { boxShadow: "0 0 5px hsl(212 100% 67% / 0.3)" },
           "50%": { boxShadow: "0 0 20px hsl(212 100% 67% / 0.6)" },
         },
+        gradient: {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
