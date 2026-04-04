@@ -18,13 +18,14 @@ function matchesFilter(node: FileTreeNode, filter: string): boolean {
   return false;
 }
 
-function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
+function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: {
   node: FileTreeNode;
   onSelectFile: (path: string) => void;
   selectedFile?: string;
   depth?: number;
+  filter?: string;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  const [expanded, setExpanded] = useState(depth < 1 || !!filter);
   const isSelected = selectedFile === node.path;
 
   if (node.type === 'folder') {
