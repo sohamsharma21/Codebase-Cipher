@@ -5,6 +5,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { RepoFile, AISummary } from '@/types';
 import { getFileExtension, getFileColor } from '@/lib/parser';
 import { getDemoSummary } from '@/lib/demoData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RightPanelProps {
   selectedFile?: string;
@@ -46,19 +47,33 @@ export default function RightPanel({ selectedFile, files, isDemo }: RightPanelPr
       }
     }
 
-    // For non-demo, we'd call AI API. Show mock loading.
+    // Call real AI via edge function
     setLoadingSummary(true);
-    const t = setTimeout(() => {
-      setSummary({
-        purpose: `This file implements ${selectedFile.split('/').pop()} functionality.`,
-        explanation: 'This file is part of the project structure. Detailed AI analysis requires an API key configuration.',
-        dependencies: [],
-        type: 'utility',
-        complexity: 'medium',
-      });
-      setLoadingSummary(false);
-    }, 1000);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('analyze-file', {
+          body: { filePath: selectedFile, fileContent: file.content!.slice(0, 3000) },
+        });
+        if (cancelled) return;
+        if (error) throw error;
+        setSummary(data as AISummary);
+      } catch (err) {
+        console.error('AI summary error:', err);
+        if (!cancelled) {
+          setSummary({
+            purpose: `This file implements ${selectedFile.split('/').pop()} functionality.`,
+            explanation: 'AI analysis failed. This is a fallback summary.',
+            dependencies: [],
+            type: 'utility',
+            complexity: 'medium',
+          });
+        }
+      } finally {
+        if (!cancelled) setLoadingSummary(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [selectedFile, file, isDemo]);
 
   const handleCopy = () => {

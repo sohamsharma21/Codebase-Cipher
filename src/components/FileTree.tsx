@@ -7,18 +7,31 @@ interface FileTreeProps {
   nodes: FileTreeNode[];
   onSelectFile: (path: string) => void;
   selectedFile?: string;
+  filter?: string;
 }
 
-function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
+function matchesFilter(node: FileTreeNode, filter: string): boolean {
+  if (!filter) return true;
+  const lowerFilter = filter.toLowerCase();
+  if (node.name.toLowerCase().includes(lowerFilter)) return true;
+  if (node.children) return node.children.some(c => matchesFilter(c, lowerFilter));
+  return false;
+}
+
+function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: {
   node: FileTreeNode;
   onSelectFile: (path: string) => void;
   selectedFile?: string;
   depth?: number;
+  filter?: string;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  const [expanded, setExpanded] = useState(depth < 1 || !!filter);
   const isSelected = selectedFile === node.path;
 
+  if (!matchesFilter(node, filter)) return null;
+
   if (node.type === 'folder') {
+    const shouldExpand = filter ? true : expanded;
     return (
       <div>
         <button
@@ -26,7 +39,7 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
           className="flex items-center gap-1 w-full text-left py-0.5 px-1 rounded text-xs hover:bg-secondary/50 transition-colors"
           style={{ paddingLeft: depth * 12 + 4 }}
         >
-          {expanded ? (
+          {shouldExpand ? (
             <ChevronDown className="w-3 h-3 shrink-0 text-muted-foreground" />
           ) : (
             <ChevronRight className="w-3 h-3 shrink-0 text-muted-foreground" />
@@ -34,8 +47,8 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
           <span className="mr-1">📁</span>
           <span className="truncate text-foreground">{node.name}</span>
         </button>
-        {expanded && node.children?.map(child => (
-          <TreeItem key={child.path} node={child} onSelectFile={onSelectFile} selectedFile={selectedFile} depth={depth + 1} />
+        {shouldExpand && node.children?.map(child => (
+          <TreeItem key={child.path} node={child} onSelectFile={onSelectFile} selectedFile={selectedFile} depth={depth + 1} filter={filter} />
         ))}
       </div>
     );
@@ -57,11 +70,11 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
   );
 }
 
-export default function FileTree({ nodes, onSelectFile, selectedFile }: FileTreeProps) {
+export default function FileTree({ nodes, onSelectFile, selectedFile, filter = '' }: FileTreeProps) {
   return (
     <div className="text-sm overflow-y-auto">
       {nodes.map(node => (
-        <TreeItem key={node.path} node={node} onSelectFile={onSelectFile} selectedFile={selectedFile} />
+        <TreeItem key={node.path} node={node} onSelectFile={onSelectFile} selectedFile={selectedFile} filter={filter} />
       ))}
     </div>
   );
