@@ -42,4 +42,45 @@ export interface RepoInfo {
   repo: string;
   stars?: number;
   description?: string;
+  language?: string;
+  defaultBranch?: string;
+}
+
+export interface ParsedFunction {
+  name: string;
+  file: string;
+  calls: string[];
+  params: string[];
+  line: number;
+}
+
+export interface AnalysisResult {
+  repoInfo: RepoInfo;
+  nodes: { id: string; type: string; data: { label: string; filePath: string } }[];
+  edges: { id: string; source: string; target: string }[];
+  endpoints: APIEndpoint[];
+  functionMap: Record<string, ParsedFunction[]>;
+  folderStructure: string[];
+  allFiles: RepoFile[];
+  stats: {
+    totalFiles: number;
+    totalImports: number;
+    totalEndpoints: number;
+    totalFunctions: number;
+  };
+  isLargeRepo: boolean;
+  truncated: boolean;
+  cached: boolean;
+}
+
+export interface PerformanceMetrics {
+  startTime: number;
+  endTime: number;
+  duration: number;
+  filesAnalyzed: number;
+  nodesCount: number;
+  edgesCount: number;
+  functionsCount: number;
+  endpointsCount: number;
+  cached: boolean;
 }
