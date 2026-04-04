@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ReactFlowProvider, useNodesState, useEdgesState } from '@xyflow/react';
-import { GitBranch, Star, RotateCcw, Download, ClipboardCopy, FileText, Camera } from 'lucide-react';
+import { GitBranch, Star, RotateCcw, Download, ClipboardCopy, FileText, Camera, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import LeftPanel from '@/components/LeftPanel';
 import CenterPanel from '@/components/CenterPanel';
