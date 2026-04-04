@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { GitBranch, Search, Loader2, Sparkles } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { GitBranch, Search, Loader2, Sparkles, X } from 'lucide-react';
 import FileTree from './FileTree';
 import type { RepoFile, AnalysisProgress } from '@/types';
 import { buildFileTree } from '@/lib/parser';
@@ -17,9 +17,29 @@ interface LeftPanelProps {
 export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadDemo, onSelectFile, selectedFile }: LeftPanelProps) {
   const [url, setUrl] = useState('');
   const [filter, setFilter] = useState('');
-  const tree = files.length > 0 ? buildFileTree(files) : [];
+
+  const tree = useMemo(() => files.length > 0 ? buildFileTree(files) : [], [files]);
   const fileCount = files.filter(f => f.type === 'blob').length;
   const folderCount = files.filter(f => f.type === 'tree').length;
+
+  // Count matching files
+  const matchCount = useMemo(() => {
+    if (!filter) return 0;
+    const lf = filter.toLowerCase();
+    return files.filter(f => f.type === 'blob' && f.path.toLowerCase().includes(lf)).length;
+  }, [files, filter]);
+
+  // Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('file-search-input')?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return (
     <div className="w-[280px] shrink-0 border-r border-border flex flex-col h-full bg-card">
@@ -35,33 +55,22 @@ export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadD
           </div>
         </div>
 
-        {/* URL Input */}
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
+            <input type="text" value={url} onChange={e => setUrl(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && url && onAnalyze(url)}
               placeholder="https://github.com/owner/repo"
-              className="w-full pl-8 pr-3 py-2 text-xs rounded-md bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+              className="w-full pl-8 pr-3 py-2 text-xs rounded-md bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
           </div>
-          <button
-            onClick={() => url && onAnalyze(url)}
-            disabled={loading || !url}
-            className="w-full py-2 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
-          >
+          <button onClick={() => url && onAnalyze(url)} disabled={loading || !url}
+            className="w-full py-2 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
             {loading ? 'Analyzing...' : 'Analyze Repository'}
           </button>
-          <button
-            onClick={onLoadDemo}
-            className="w-full py-1.5 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/50 flex items-center justify-center gap-1 transition-colors"
-          >
-            <Sparkles className="w-3 h-3" />
-            Try Demo (expressjs/express)
+          <button onClick={onLoadDemo}
+            className="w-full py-1.5 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/50 flex items-center justify-center gap-1 transition-colors">
+            <Sparkles className="w-3 h-3" />Try Demo (expressjs/express)
           </button>
         </div>
       </div>
@@ -74,27 +83,28 @@ export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadD
             <span>{progress.message}</span>
           </div>
           <div className="mt-2 h-1 rounded-full bg-secondary overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-500"
-              style={{ width: `${(progress.step / 5) * 100}%` }}
-            />
+            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${(progress.step / 5) * 100}%` }} />
           </div>
         </div>
       )}
 
-      {/* Search */}
+      {/* Smart file search */}
       {tree.length > 0 && (
         <div className="px-2 pt-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-            <input
-              type="text"
-              value={filter}
-              onChange={e => setFilter(e.target.value)}
-              placeholder="Filter files..."
-              className="w-full pl-7 pr-3 py-1.5 text-xs rounded-md bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <input id="file-search-input" type="text" value={filter} onChange={e => setFilter(e.target.value)}
+              placeholder="Search files... (⌘K)"
+              className="w-full pl-7 pr-7 py-1.5 text-xs rounded-md bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+            {filter && (
+              <button onClick={() => setFilter('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
+          {filter && (
+            <p className="text-[10px] text-muted-foreground mt-1 px-1">{matchCount} files match</p>
+          )}
         </div>
       )}
 
@@ -103,9 +113,7 @@ export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadD
         {tree.length > 0 ? (
           <FileTree nodes={tree} onSelectFile={onSelectFile} selectedFile={selectedFile} filter={filter} />
         ) : (
-          <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-            No repository loaded
-          </div>
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground">No repository loaded</div>
         )}
       </div>
 
