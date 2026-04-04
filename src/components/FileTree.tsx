@@ -1,0 +1,68 @@
+import { useState } from 'react';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import type { FileTreeNode } from '@/types';
+import { getFileIcon, getFileColor } from '@/lib/parser';
+
+interface FileTreeProps {
+  nodes: FileTreeNode[];
+  onSelectFile: (path: string) => void;
+  selectedFile?: string;
+}
+
+function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
+  node: FileTreeNode;
+  onSelectFile: (path: string) => void;
+  selectedFile?: string;
+  depth?: number;
+}) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const isSelected = selectedFile === node.path;
+
+  if (node.type === 'folder') {
+    return (
+      <div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1 w-full text-left py-0.5 px-1 rounded text-xs hover:bg-secondary/50 transition-colors"
+          style={{ paddingLeft: depth * 12 + 4 }}
+        >
+          {expanded ? (
+            <ChevronDown className="w-3 h-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-3 h-3 shrink-0 text-muted-foreground" />
+          )}
+          <span className="mr-1">📁</span>
+          <span className="truncate text-foreground">{node.name}</span>
+        </button>
+        {expanded && node.children?.map(child => (
+          <TreeItem key={child.path} node={child} onSelectFile={onSelectFile} selectedFile={selectedFile} depth={depth + 1} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => onSelectFile(node.path)}
+      className={`flex items-center gap-1 w-full text-left py-0.5 px-1 rounded text-xs transition-colors ${
+        isSelected ? 'bg-primary/20 text-primary' : 'hover:bg-secondary/50 text-muted-foreground'
+      }`}
+      style={{ paddingLeft: depth * 12 + 16 }}
+    >
+      <span className="mr-1 text-[10px]">{getFileIcon(node.path)}</span>
+      <span className="truncate" style={{ color: isSelected ? undefined : getFileColor(node.path) }}>
+        {node.name}
+      </span>
+    </button>
+  );
+}
+
+export default function FileTree({ nodes, onSelectFile, selectedFile }: FileTreeProps) {
+  return (
+    <div className="text-sm overflow-y-auto">
+      {nodes.map(node => (
+        <TreeItem key={node.path} node={node} onSelectFile={onSelectFile} selectedFile={selectedFile} />
+      ))}
+    </div>
+  );
+}
