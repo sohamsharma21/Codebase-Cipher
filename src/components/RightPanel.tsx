@@ -5,6 +5,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { RepoFile, AISummary } from '@/types';
 import { getFileExtension, getFileColor } from '@/lib/parser';
 import { getDemoSummary } from '@/lib/demoData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RightPanelProps {
   selectedFile?: string;
