@@ -70,11 +70,11 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: 
   );
 }
 
-export default function FileTree({ nodes, onSelectFile, selectedFile }: FileTreeProps) {
+export default function FileTree({ nodes, onSelectFile, selectedFile, filter = '' }: FileTreeProps) {
   return (
     <div className="text-sm overflow-y-auto">
       {nodes.map(node => (
-        <TreeItem key={node.path} node={node} onSelectFile={onSelectFile} selectedFile={selectedFile} />
+        <TreeItem key={node.path} node={node} onSelectFile={onSelectFile} selectedFile={selectedFile} filter={filter} />
       ))}
     </div>
   );
