@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -35,6 +35,23 @@ const methodColors: Record<string, string> = {
   DELETE: '#f85149',
   PATCH: '#bc8cff',
 };
+
+function ToolbarZoom() {
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  return (
+    <div className="flex items-center gap-1">
+      <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+        <ZoomIn className="w-3.5 h-3.5" />
+      </button>
+      <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+        <ZoomOut className="w-3.5 h-3.5" />
+      </button>
+      <button onClick={() => fitView()} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+        <Maximize2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
 export default function CenterPanel({ nodes, edges, endpoints, selectedFile, onNodesChange, onEdgesChange, onNodeClick, hasData }: CenterPanelProps) {
   const [activeTab, setActiveTab] = useState<'graph' | 'endpoints'>('graph');
@@ -89,7 +106,6 @@ export default function CenterPanel({ nodes, edges, endpoints, selectedFile, onN
 
   return (
     <div className="flex-1 flex flex-col bg-background">
-      {/* Toolbar */}
       <div className="h-10 border-b border-border flex items-center px-3 gap-2">
         <button
           onClick={() => setActiveTab('graph')}
@@ -110,7 +126,6 @@ export default function CenterPanel({ nodes, edges, endpoints, selectedFile, onN
         <ToolbarZoom />
       </div>
 
-      {/* Content */}
       {activeTab === 'graph' ? (
         <div className="flex-1">
           <ReactFlow
@@ -158,22 +173,3 @@ export default function CenterPanel({ nodes, edges, endpoints, selectedFile, onN
     </div>
   );
 }
-
-function ToolbarZoom() {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
-  return (
-    <div className="flex items-center gap-1">
-      <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
-        <ZoomIn className="w-3.5 h-3.5" />
-      </button>
-      <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
-        <ZoomOut className="w-3.5 h-3.5" />
-      </button>
-      <button onClick={() => fitView()} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
-        <Maximize2 className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
-
-import { useState } from 'react';
