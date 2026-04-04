@@ -39,7 +39,7 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: 
           className="flex items-center gap-1 w-full text-left py-0.5 px-1 rounded text-xs hover:bg-secondary/50 transition-colors"
           style={{ paddingLeft: depth * 12 + 4 }}
         >
-          {expanded ? (
+          {shouldExpand ? (
             <ChevronDown className="w-3 h-3 shrink-0 text-muted-foreground" />
           ) : (
             <ChevronRight className="w-3 h-3 shrink-0 text-muted-foreground" />
