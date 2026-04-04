@@ -47,8 +47,8 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: 
           <span className="mr-1">📁</span>
           <span className="truncate text-foreground">{node.name}</span>
         </button>
-        {expanded && node.children?.map(child => (
-          <TreeItem key={child.path} node={child} onSelectFile={onSelectFile} selectedFile={selectedFile} depth={depth + 1} />
+        {shouldExpand && node.children?.map(child => (
+          <TreeItem key={child.path} node={child} onSelectFile={onSelectFile} selectedFile={selectedFile} depth={depth + 1} filter={filter} />
         ))}
       </div>
     );
