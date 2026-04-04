@@ -16,6 +16,7 @@ interface LeftPanelProps {
 
 export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadDemo, onSelectFile, selectedFile }: LeftPanelProps) {
   const [url, setUrl] = useState('');
+  const [filter, setFilter] = useState('');
   const tree = files.length > 0 ? buildFileTree(files) : [];
   const fileCount = files.filter(f => f.type === 'blob').length;
   const folderCount = files.filter(f => f.type === 'tree').length;
