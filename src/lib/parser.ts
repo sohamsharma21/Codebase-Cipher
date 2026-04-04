@@ -1,5 +1,23 @@
 import type { ParsedImport, APIEndpoint, FileTreeNode, RepoFile } from '@/types';
 
+export interface GraphNode {
+  id: string;
+  type: string;
+  data: {
+    label: string;
+    filePath: string;
+  };
+  [key: string]: any;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  [key: string]: any;
+}
+
 const EXCLUDED_DIRS = ['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.cache', '__pycache__', '.vscode'];
 const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'];
 
@@ -80,7 +98,9 @@ export function parseEndpoints(content: string, filePath: string): APIEndpoint[]
     });
   }
 
-  if (filePath.includes('/api/')) {
+  // Bug #5 fix: Only add the heuristic endpoint if the regex found nothing,
+  // preventing duplicates for /api/ files that also contain router.get() etc.
+  if (filePath.includes('/api/') && endpoints.length === 0) {
     const method = content.includes('POST') ? 'POST' : content.includes('PUT') ? 'PUT' : content.includes('DELETE') ? 'DELETE' : 'GET';
     const routePath = '/' + filePath.replace(/\.(ts|js|tsx|jsx)$/, '').replace(/\/index$/, '');
     endpoints.push({ method: method as APIEndpoint['method'], path: routePath, file: filePath });
@@ -136,11 +156,15 @@ export function resolveImportPath(sourceFile: string, importPath: string, allFil
   let resolved = importPath;
 
   if (importPath.startsWith('./') || importPath.startsWith('../')) {
-    const parts = [...sourceDir.split('/'), ...importPath.split('/')];
+    // Bug #8 fix: Filter out empty strings from split so root-level files
+    // (where sourceDir is '') don't produce broken path stacks like ['', '.', 'foo']
+    const sourceParts = sourceDir ? sourceDir.split('/') : [];
+    const importParts = importPath.split('/');
+    const parts = [...sourceParts, ...importParts];
     const stack: string[] = [];
     for (const part of parts) {
       if (part === '..') stack.pop();
-      else if (part !== '.') stack.push(part);
+      else if (part !== '.' && part !== '') stack.push(part);
     }
     resolved = stack.join('/');
   }

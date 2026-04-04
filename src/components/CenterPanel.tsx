@@ -10,6 +10,8 @@ import ClusterNode from './ClusterNode';
 import HealthReport from './HealthReport';
 import InsightsPanel from './InsightsPanel';
 import FunctionCallMap from './FunctionCallMap';
+import HighPerformanceGraph from './HighPerformanceGraph';
+import TelemetryPanel from './TelemetryPanel';
 import type { APIEndpoint, ParsedFunction, PerformanceMetrics } from '@/types';
 import { detectCircularDeps, calculateHealth, type CycleInfo, type HealthStats } from '@/lib/graphUtils';
 import { useClusteredGraph } from '@/hooks/useClusteredGraph';
@@ -24,6 +26,7 @@ interface CenterPanelProps {
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onNodeClick: (path: string) => void;
+  onClearSelection: () => void;
   hasData: boolean;
 }
 
@@ -51,14 +54,15 @@ function ToolbarZoom() {
   );
 }
 
-export default function CenterPanel({ nodes, edges, endpoints, functionMap, metrics, selectedFile, onNodesChange, onEdgesChange, onNodeClick, hasData }: CenterPanelProps) {
-  const [activeTab, setActiveTab] = useState<'graph' | 'endpoints' | 'health' | 'insights' | 'functions'>('graph');
+export default function CenterPanel({ nodes, edges, endpoints, functionMap, metrics, selectedFile, onNodesChange, onEdgesChange, onNodeClick, onClearSelection, hasData }: CenterPanelProps) {
+  const [activeTab, setActiveTab] = useState<'graph' | 'endpoints' | 'health' | 'insights' | 'functions' | 'advanced_graph'>('graph');
   const [filter, setFilter] = useState<FilterType>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [highlightCycles, setHighlightCycles] = useState(false);
   const [graphSearch, setGraphSearch] = useState('');
   const [showGraphSearch, setShowGraphSearch] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
 
   const cycles = useMemo(() => hasData ? detectCircularDeps(nodes, edges) : [], [nodes, edges, hasData]);
@@ -77,6 +81,18 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
   }, [cycles]);
 
   const clustered = useClusteredGraph(nodes, edges);
+
+  // Bug #4 fix: Close filter dropdown on outside click
+  useEffect(() => {
+    if (!showFilterDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as globalThis.Node)) {
+        setShowFilterDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFilterDropdown]);
 
   const searchResults = useMemo(() => {
     if (!graphSearch.trim()) return [];
@@ -220,6 +236,7 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
 
   const tabs = [
     { id: 'graph' as const, label: 'Graph', icon: Network },
+    { id: 'advanced_graph' as const, label: 'Power View', icon: Maximize2 },
     { id: 'endpoints' as const, label: 'APIs', icon: Globe },
     { id: 'functions' as const, label: 'Functions', icon: Code2 },
     { id: 'insights' as const, label: 'Insights', icon: Lightbulb },
@@ -249,8 +266,9 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
               <Search className="w-3.5 h-3.5" />
             </button>
 
+            {/* Bug #14 fix: use onClearSelection (sets undefined) instead of onNodeClick('') */}
             {selectedFile && (
-              <button onClick={() => onNodeClick('')}
+              <button onClick={onClearSelection}
                 className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary" title="Clear focus">
                 <Crosshair className="w-3 h-3" />Focus <X className="w-3 h-3" />
               </button>
@@ -263,7 +281,7 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
               <Shrink className="w-3.5 h-3.5" />
             </button>
 
-            <div className="relative">
+            <div className="relative" ref={filterDropdownRef}>
               {filter !== 'all' ? (
                 <button onClick={() => setFilter('all')} className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary">
                   {filterLabels[filter]} <X className="w-3 h-3" />
@@ -352,6 +370,10 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
             />
           </ReactFlow>
         </div>
+      ) : activeTab === 'advanced_graph' ? (
+        <div className="flex-1">
+          <HighPerformanceGraph rawNodes={nodes} rawEdges={edges} onNodeClick={onNodeClick} />
+        </div>
       ) : activeTab === 'endpoints' ? (
         <div className="flex-1 overflow-y-auto p-4">
           {endpoints.length > 0 ? (
@@ -378,6 +400,11 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
       ) : healthStats ? (
         <HealthReport stats={healthStats} cycles={cycles} onSelectFile={onNodeClick} />
       ) : null}
+
+      {/* Floating System Telemetry - Only visible on map views */}
+      {(activeTab === 'graph' || activeTab === 'advanced_graph') && (
+        <TelemetryPanel metrics={metrics} />
+      )}
     </div>
   );
 }

@@ -83,4 +83,5 @@ export interface PerformanceMetrics {
   functionsCount: number;
   endpointsCount: number;
   cached: boolean;
+  llmResponseTime?: number;
 }

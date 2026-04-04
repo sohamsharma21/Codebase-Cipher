@@ -3,6 +3,7 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "lib": [
       "ES2020",
       "DOM",
@@ -25,7 +26,10 @@
     "strict": false,
     "target": "ES2020",
     "types": [
-      "vitest/globals"
+      "vitest/globals",
+      "react",
+      "react-dom",
+      "node"
     ],
     "useDefineForClassFields": true
   },

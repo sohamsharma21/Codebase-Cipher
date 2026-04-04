@@ -10,33 +10,67 @@ import { useGitHubAnalysis } from '@/hooks/useGitHubAnalysis';
 
 function GitVizzApp() {
   const navigate = useNavigate();
-  const analysis = useGitHubAnalysis();
+  const {
+    files, nodes: analysisNodes, edges: analysisEdges, endpoints,
+    functionMap, repoInfo, loading, progress, isDemo, metrics,
+    analyze, loadDemo,
+  } = useGitHubAnalysis();
+
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState([]);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedFile, setSelectedFile] = useState<string>();
+  const [selectedFile, setSelectedFile] = useState<string | undefined>(undefined);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
+  // Sync analysis results into flow state
   useEffect(() => {
-    if (analysis.nodes.length > 0) {
-      setFlowNodes(analysis.nodes);
-      setFlowEdges(analysis.edges);
+    if (analysisNodes.length > 0) {
+      setFlowNodes(analysisNodes);
+      setFlowEdges(analysisEdges);
     }
-  }, [analysis.nodes, analysis.edges, setFlowNodes, setFlowEdges]);
+  }, [analysisNodes, analysisEdges, setFlowNodes, setFlowEdges]);
 
+  // Bug #4 fix: Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as globalThis.Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
+
+  // Bug #3 fix: Destructured `analyze` and `loadDemo` are stable useCallback refs from the hook
   const handleAnalyze = useCallback(async (url: string) => {
     setSelectedFile(undefined);
     setFlowNodes([]);
     setFlowEdges([]);
-    await analysis.analyze(url);
-  }, [analysis.analyze, setFlowNodes, setFlowEdges]);
+    await analyze(url);
+  }, [analyze, setFlowNodes, setFlowEdges]);
 
   const handleLoadDemo = useCallback(() => {
     setSelectedFile(undefined);
-    analysis.loadDemo();
-  }, [analysis.loadDemo]);
+    loadDemo();
+  }, [loadDemo]);
+
+  // Bug #14 fix: Always use undefined (not empty string) for "no selection"
+  const handleClearSelection = useCallback(() => {
+    setSelectedFile(undefined);
+  }, []);
+
+  // Bug #15 fix: Reset analysis state instead of full page reload
+  const handleNewAnalysis = useCallback(() => {
+    setSelectedFile(undefined);
+    setFlowNodes([]);
+    setFlowEdges([]);
+    // Navigate to landing page for a fresh start
+    navigate('/');
+  }, [setFlowNodes, setFlowEdges, navigate]);
 
   const hasData = flowNodes.length > 0;
-  const repoName = analysis.repoInfo ? `${analysis.repoInfo.owner}/${analysis.repoInfo.repo}` : undefined;
+  const repoName = repoInfo ? `${repoInfo.owner}/${repoInfo.repo}` : undefined;
 
   const handleExport = useCallback(async (type: 'json' | 'text' | 'png') => {
     setShowExportMenu(false);
@@ -79,35 +113,35 @@ function GitVizzApp() {
             <span className="text-[9px] ml-1.5 px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.0</span>
           </div>
         </div>
-        {analysis.repoInfo && (
+        {repoInfo && (
           <>
             <div className="mx-4 h-4 w-px bg-border" />
             <span className="text-xs text-muted-foreground">
-              {analysis.repoInfo.owner}/{analysis.repoInfo.repo}
+              {repoInfo.owner}/{repoInfo.repo}
             </span>
-            {analysis.repoInfo.stars !== undefined && (
+            {repoInfo.stars !== undefined && (
               <span className="ml-2 flex items-center gap-1 text-xs text-[hsl(var(--orange))]">
                 <Star className="w-3 h-3" />
-                {analysis.repoInfo.stars.toLocaleString()}
+                {repoInfo.stars.toLocaleString()}
               </span>
             )}
-            {analysis.repoInfo.language && (
+            {repoInfo.language && (
               <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
-                {analysis.repoInfo.language}
+                {repoInfo.language}
               </span>
             )}
           </>
         )}
-        {analysis.metrics && (
+        {metrics && (
           <span className="ml-3 text-[10px] text-muted-foreground">
-            ⚡ {(analysis.metrics.duration / 1000).toFixed(1)}s
-            {analysis.metrics.cached && ' (cached)'}
+            ⚡ {(metrics.duration / 1000).toFixed(1)}s
+            {metrics.cached && ' (cached)'}
           </span>
         )}
         <div className="flex-1" />
         {hasData && (
           <div className="flex items-center gap-2">
-            <div className="relative">
+            <div className="relative" ref={exportMenuRef}>
               <button onClick={() => setShowExportMenu(!showExportMenu)}
                 className="flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <Download className="w-3 h-3" />Export
@@ -126,13 +160,13 @@ function GitVizzApp() {
                 </div>
               )}
             </div>
-            {analysis.repoInfo && (
-              <a href={`https://github.com/${analysis.repoInfo.owner}/${analysis.repoInfo.repo}`} target="_blank" rel="noopener noreferrer"
+            {repoInfo && (
+              <a href={`https://github.com/${repoInfo.owner}/${repoInfo.repo}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <Star className="w-3 h-3" />Star on GitHub
               </a>
             )}
-            <button onClick={() => window.location.reload()}
+            <button onClick={handleNewAnalysis}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <RotateCcw className="w-3 h-3" />New Analysis
             </button>
@@ -141,13 +175,13 @@ function GitVizzApp() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <LeftPanel files={analysis.files} progress={analysis.progress} loading={analysis.loading}
+        <LeftPanel files={files} progress={progress} loading={loading}
           onAnalyze={handleAnalyze} onLoadDemo={handleLoadDemo} onSelectFile={setSelectedFile} selectedFile={selectedFile} />
-        <CenterPanel nodes={flowNodes} edges={flowEdges} endpoints={analysis.endpoints}
-          functionMap={analysis.functionMap} metrics={analysis.metrics}
+        <CenterPanel nodes={flowNodes} edges={flowEdges} endpoints={endpoints}
+          functionMap={functionMap} metrics={metrics}
           selectedFile={selectedFile}
-          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={setSelectedFile} hasData={hasData} />
-        <RightPanel selectedFile={selectedFile} files={analysis.files} isDemo={analysis.isDemo} repoName={repoName} />
+          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={setSelectedFile} onClearSelection={handleClearSelection} hasData={hasData} />
+        <RightPanel selectedFile={selectedFile} files={files} isDemo={isDemo} repoName={repoName} />
       </div>
     </div>
   );

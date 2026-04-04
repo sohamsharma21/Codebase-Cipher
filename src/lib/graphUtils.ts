@@ -15,6 +15,8 @@ export function detectCircularDeps(nodes: Node[], edges: Edge[]): CycleInfo[] {
   const visited = new Set<string>();
   const inStack = new Set<string>();
   const cycles: string[][] = [];
+  // Bug #9 fix: Track seen cycle signatures to prevent duplicates
+  const seenCycleKeys = new Set<string>();
 
   function dfs(node: string, path: string[]) {
     visited.add(node);
@@ -26,7 +28,15 @@ export function detectCircularDeps(nodes: Node[], edges: Edge[]): CycleInfo[] {
         dfs(neighbor, [...path]);
       } else if (inStack.has(neighbor)) {
         const cycleStart = path.indexOf(neighbor);
-        cycles.push(path.slice(cycleStart));
+        const cycle = path.slice(cycleStart);
+        // Normalize: rotate cycle so the smallest ID comes first
+        const minIdx = cycle.indexOf(cycle.reduce((a, b) => a < b ? a : b));
+        const normalized = [...cycle.slice(minIdx), ...cycle.slice(0, minIdx)];
+        const key = normalized.join('->');
+        if (!seenCycleKeys.has(key)) {
+          seenCycleKeys.add(key);
+          cycles.push(cycle);
+        }
       }
     }
     inStack.delete(node);

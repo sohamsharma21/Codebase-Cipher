@@ -46,9 +46,9 @@ export default function HealthReport({ stats, cycles, onSelectFile }: HealthRepo
   const generateRecommendations = async () => {
     setLoadingRecs(true);
     try {
-      const prompt = `Analyze these codebase statistics and give 3-5 specific, actionable improvement suggestions. Return ONLY a JSON array of objects with "title" and "description" fields.
+      const systemPrompt = `You are a code health analysis expert. Analyze these codebase statistics and give 3-5 specific, actionable improvement suggestions. Return ONLY a JSON array of objects with "title" and "description" fields. No explanation, just the JSON array.`;
 
-Stats:
+      const userMessage = `Stats:
 - Total files: ${stats.totalFiles}
 - JS files: ${stats.jsFiles}, TS files: ${stats.tsFiles}
 - Circular dependencies: ${stats.circularDeps}
@@ -57,20 +57,28 @@ Stats:
 - Health score: ${stats.score}/100
 - Top complex files: ${stats.topComplex.map(f => `${f.path} (${f.imports} imports)`).join(', ')}`;
 
-      const { data, error } = await supabase.functions.invoke('analyze-file', {
-        body: { filePath: '__health_recommendations__', fileContent: prompt },
+      // Bug #11 fix: Use chat-with-code (returns free-form text) instead of
+      // analyze-file (returns AISummary), then parse the JSON from the response
+      const { data, error } = await supabase.functions.invoke('chat-with-code', {
+        body: {
+          messages: [{ role: 'user', content: userMessage }],
+          systemPrompt,
+        },
       });
       if (error) throw error;
-      // Try to use it as recommendations if it's an array, otherwise generate fallback
-      if (Array.isArray(data)) {
-        setRecommendations(data);
-      } else {
-        setRecommendations([
-          { title: 'Review circular dependencies', description: `Found ${stats.circularDeps} circular dependencies. Consider refactoring to break these cycles.` },
-          { title: 'Clean up orphan files', description: `${stats.orphanFiles.length} files are never imported. Consider removing or integrating them.` },
-          { title: 'Reduce complexity', description: `Average imports per file is ${stats.avgImports}. Consider splitting complex files.` },
-        ]);
+
+      // Try to parse JSON array from the response content
+      const content = data?.content || '';
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].title) {
+          setRecommendations(parsed);
+          return;
+        }
       }
+      // Fallback if parsing fails
+      throw new Error('Could not parse recommendations');
     } catch {
       setRecommendations([
         { title: 'Review circular dependencies', description: `Found ${stats.circularDeps} circular dependencies that should be resolved.` },

@@ -25,21 +25,23 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: 
   depth?: number;
   filter?: string;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1 || !!filter);
+  const [expanded, setExpanded] = useState(depth < 1);
   const isSelected = selectedFile === node.path;
 
   if (!matchesFilter(node, filter)) return null;
 
   if (node.type === 'folder') {
-    const shouldExpand = filter ? true : expanded;
+    // Bug #13 fix: Unify expanded state — when filter is active, always show expanded.
+    // The chevron icon now always reflects the actual visibility of children.
+    const isExpanded = filter ? true : expanded;
     return (
       <div>
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => { if (!filter) setExpanded(!expanded); }}
           className="flex items-center gap-1 w-full text-left py-0.5 px-1 rounded text-xs hover:bg-secondary/50 transition-colors"
           style={{ paddingLeft: depth * 12 + 4 }}
         >
-          {shouldExpand ? (
+          {isExpanded ? (
             <ChevronDown className="w-3 h-3 shrink-0 text-muted-foreground" />
           ) : (
             <ChevronRight className="w-3 h-3 shrink-0 text-muted-foreground" />
@@ -47,7 +49,7 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: 
           <span className="mr-1">📁</span>
           <span className="truncate text-foreground">{node.name}</span>
         </button>
-        {shouldExpand && node.children?.map(child => (
+        {isExpanded && node.children?.map(child => (
           <TreeItem key={child.path} node={child} onSelectFile={onSelectFile} selectedFile={selectedFile} depth={depth + 1} filter={filter} />
         ))}
       </div>

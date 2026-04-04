@@ -101,6 +101,12 @@ export function useClusteredGraph(allNodes: Node[], allEdges: Edge[]): UseCluste
     const nodeSet = new Set<string>();
     const resultNodes: Node[] = [];
 
+    // Bug #10 fix: Build O(1) lookup map instead of using O(n) find() in nested loop
+    const nodeMap = new Map<string, Node>();
+    for (const n of allNodes) {
+      nodeMap.set(n.id, n);
+    }
+
     // For each top-level cluster
     for (const [topFolder, subFolders] of topClusters) {
       const isTopExpanded = expandedClusters.has(topFolder);
@@ -144,9 +150,9 @@ export function useClusteredGraph(allNodes: Node[], allEdges: Edge[]): UseCluste
             });
             nodeSet.add(`cluster:${sf}`);
           } else {
-            // Show individual files
+            // Show individual files — O(1) lookup via nodeMap
             for (const fileId of cluster.children) {
-              const origNode = allNodes.find(n => n.id === fileId);
+              const origNode = nodeMap.get(fileId);
               if (origNode) {
                 resultNodes.push({ ...origNode });
                 nodeSet.add(fileId);
