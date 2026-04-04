@@ -50,8 +50,8 @@ export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadD
             <GitBranch className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-foreground">GitVizz</h1>
-            <p className="text-[10px] text-muted-foreground">Illuminate your codebase</p>
+            <h1 className="text-base font-bold text-foreground">Codebase Cipher</h1>
+            <p className="text-[10px] text-muted-foreground">Understand any codebase</p>
           </div>
         </div>
 
