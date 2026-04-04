@@ -28,7 +28,10 @@ function TreeItem({ node, onSelectFile, selectedFile, depth = 0, filter = '' }: 
   const [expanded, setExpanded] = useState(depth < 1 || !!filter);
   const isSelected = selectedFile === node.path;
 
+  if (!matchesFilter(node, filter)) return null;
+
   if (node.type === 'folder') {
+    const shouldExpand = filter ? true : expanded;
     return (
       <div>
         <button
