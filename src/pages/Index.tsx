@@ -45,9 +45,9 @@ function GitVizzApp() {
       navigator.clipboard.writeText(data);
       toast.success('Node list copied to clipboard');
     } else if (type === 'text') {
-      const text = `GitVizz Health Report - ${repoName || 'Unknown'}\n\nFiles: ${flowNodes.length}\nConnections: ${flowEdges.length}\n\nNodes:\n${flowNodes.map(n => `  - ${n.id}`).join('\n')}`;
+      const text = `Codebase Cipher Report - ${repoName || 'Unknown'}\n\nFiles: ${flowNodes.length}\nConnections: ${flowEdges.length}\n\nNodes:\n${flowNodes.map(n => `  - ${n.id}`).join('\n')}`;
       navigator.clipboard.writeText(text);
-      toast.success('Health report copied to clipboard');
+      toast.success('Report copied to clipboard');
     } else if (type === 'png') {
       toast('Capturing graph...');
       try {
@@ -56,7 +56,7 @@ function GitVizzApp() {
         if (!canvas) { toast.error('Graph not found'); return; }
         const c = await html2canvas(canvas, { backgroundColor: '#0d1117', scale: 2 });
         const link = document.createElement('a');
-        link.download = `gitvizz-${repoName?.replace('/', '-') || 'graph'}.png`;
+        link.download = `codebase-cipher-${repoName?.replace('/', '-') || 'graph'}.png`;
         link.href = c.toDataURL();
         link.click();
         toast.success('Graph exported as PNG');
@@ -75,7 +75,7 @@ function GitVizzApp() {
           </button>
           <GitBranch className="w-5 h-5 text-primary" />
           <div>
-            <span className="font-bold text-sm text-foreground">GitVizz</span>
+            <span className="font-bold text-sm text-foreground">Codebase Cipher</span>
             <span className="text-[9px] ml-1.5 px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.0</span>
           </div>
         </div>
@@ -86,17 +86,27 @@ function GitVizzApp() {
               {analysis.repoInfo.owner}/{analysis.repoInfo.repo}
             </span>
             {analysis.repoInfo.stars !== undefined && (
-              <span className="ml-2 flex items-center gap-1 text-xs text-orange">
+              <span className="ml-2 flex items-center gap-1 text-xs text-[hsl(var(--orange))]">
                 <Star className="w-3 h-3" />
                 {analysis.repoInfo.stars.toLocaleString()}
               </span>
             )}
+            {analysis.repoInfo.language && (
+              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
+                {analysis.repoInfo.language}
+              </span>
+            )}
           </>
+        )}
+        {analysis.metrics && (
+          <span className="ml-3 text-[10px] text-muted-foreground">
+            ⚡ {(analysis.metrics.duration / 1000).toFixed(1)}s
+            {analysis.metrics.cached && ' (cached)'}
+          </span>
         )}
         <div className="flex-1" />
         {hasData && (
           <div className="flex items-center gap-2">
-            {/* Export dropdown */}
             <div className="relative">
               <button onClick={() => setShowExportMenu(!showExportMenu)}
                 className="flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -133,7 +143,9 @@ function GitVizzApp() {
       <div className="flex flex-1 overflow-hidden">
         <LeftPanel files={analysis.files} progress={analysis.progress} loading={analysis.loading}
           onAnalyze={handleAnalyze} onLoadDemo={handleLoadDemo} onSelectFile={setSelectedFile} selectedFile={selectedFile} />
-        <CenterPanel nodes={flowNodes} edges={flowEdges} endpoints={analysis.endpoints} selectedFile={selectedFile}
+        <CenterPanel nodes={flowNodes} edges={flowEdges} endpoints={analysis.endpoints}
+          functionMap={analysis.functionMap} metrics={analysis.metrics}
+          selectedFile={selectedFile}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={setSelectedFile} hasData={hasData} />
         <RightPanel selectedFile={selectedFile} files={analysis.files} isDemo={analysis.isDemo} repoName={repoName} />
       </div>
