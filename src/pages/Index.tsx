@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ReactFlowProvider, useNodesState, useEdgesState } from '@xyflow/react';
 import { GitBranch, Star, RotateCcw } from 'lucide-react';
 import LeftPanel from '@/components/LeftPanel';
@@ -7,59 +7,49 @@ import RightPanel from '@/components/RightPanel';
 import { useGitHubAnalysis } from '@/hooks/useGitHubAnalysis';
 
 function GitVizzApp() {
-  const { files, nodes, edges, endpoints, repoInfo, loading, progress, isDemo, analyze, loadDemo, setNodes: setAnalysisNodes, setEdges: setAnalysisEdges } = useGitHubAnalysis();
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(nodes);
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(edges);
+  const analysis = useGitHubAnalysis();
+  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState([]);
+  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState([]);
   const [selectedFile, setSelectedFile] = useState<string>();
 
-  // Sync analysis nodes/edges to flow state
-  const prevNodesRef = useState(nodes)[0];
-  if (nodes !== prevNodesRef && nodes.length > 0 && nodes !== flowNodes) {
-    setFlowNodes(nodes);
-    setFlowEdges(edges);
-  }
+  useEffect(() => {
+    if (analysis.nodes.length > 0) {
+      setFlowNodes(analysis.nodes);
+      setFlowEdges(analysis.edges);
+    }
+  }, [analysis.nodes, analysis.edges, setFlowNodes, setFlowEdges]);
 
-  // Use a ref-like approach: update flow when analysis changes
   const handleAnalyze = useCallback(async (url: string) => {
     setSelectedFile(undefined);
-    await analyze(url);
-  }, [analyze]);
+    setFlowNodes([]);
+    setFlowEdges([]);
+    await analysis.analyze(url);
+  }, [analysis.analyze, setFlowNodes, setFlowEdges]);
 
   const handleLoadDemo = useCallback(() => {
     setSelectedFile(undefined);
-    loadDemo();
-  }, [loadDemo]);
+    analysis.loadDemo();
+  }, [analysis.loadDemo]);
 
-  const handleSelectFile = useCallback((path: string) => {
-    setSelectedFile(path);
-  }, []);
-
-  // Sync nodes when they change from analysis
-  if (nodes.length > 0 && flowNodes.length === 0) {
-    setFlowNodes(nodes);
-    setFlowEdges(edges);
-  }
-
-  const hasData = nodes.length > 0;
+  const hasData = flowNodes.length > 0;
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Header */}
       <header className="h-12 border-b border-border flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2">
           <GitBranch className="w-5 h-5 text-primary" />
           <span className="font-bold text-sm text-foreground">GitVizz</span>
         </div>
-        {repoInfo && (
+        {analysis.repoInfo && (
           <>
             <div className="mx-4 h-4 w-px bg-border" />
             <span className="text-xs text-muted-foreground">
-              {repoInfo.owner}/{repoInfo.repo}
+              {analysis.repoInfo.owner}/{analysis.repoInfo.repo}
             </span>
-            {repoInfo.stars !== undefined && (
+            {analysis.repoInfo.stars !== undefined && (
               <span className="ml-2 flex items-center gap-1 text-xs text-orange">
                 <Star className="w-3 h-3" />
-                {repoInfo.stars.toLocaleString()}
+                {analysis.repoInfo.stars.toLocaleString()}
               </span>
             )}
           </>
@@ -76,31 +66,30 @@ function GitVizzApp() {
         )}
       </header>
 
-      {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         <LeftPanel
-          files={files}
-          progress={progress}
-          loading={loading}
+          files={analysis.files}
+          progress={analysis.progress}
+          loading={analysis.loading}
           onAnalyze={handleAnalyze}
           onLoadDemo={handleLoadDemo}
-          onSelectFile={handleSelectFile}
+          onSelectFile={setSelectedFile}
           selectedFile={selectedFile}
         />
         <CenterPanel
-          nodes={flowNodes.length > 0 ? flowNodes : nodes}
-          edges={flowEdges.length > 0 ? flowEdges : edges}
-          endpoints={endpoints}
+          nodes={flowNodes}
+          edges={flowEdges}
+          endpoints={analysis.endpoints}
           selectedFile={selectedFile}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onNodeClick={handleSelectFile}
+          onNodeClick={setSelectedFile}
           hasData={hasData}
         />
         <RightPanel
           selectedFile={selectedFile}
-          files={files}
-          isDemo={isDemo}
+          files={analysis.files}
+          isDemo={analysis.isDemo}
         />
       </div>
     </div>
