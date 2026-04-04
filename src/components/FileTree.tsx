@@ -7,6 +7,15 @@ interface FileTreeProps {
   nodes: FileTreeNode[];
   onSelectFile: (path: string) => void;
   selectedFile?: string;
+  filter?: string;
+}
+
+function matchesFilter(node: FileTreeNode, filter: string): boolean {
+  if (!filter) return true;
+  const lowerFilter = filter.toLowerCase();
+  if (node.name.toLowerCase().includes(lowerFilter)) return true;
+  if (node.children) return node.children.some(c => matchesFilter(c, lowerFilter));
+  return false;
 }
 
 function TreeItem({ node, onSelectFile, selectedFile, depth = 0 }: {
