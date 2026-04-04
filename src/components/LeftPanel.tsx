@@ -82,10 +82,26 @@ export default function LeftPanel({ files, progress, loading, onAnalyze, onLoadD
         </div>
       )}
 
+      {/* Search */}
+      {tree.length > 0 && (
+        <div className="px-2 pt-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <input
+              type="text"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              placeholder="Filter files..."
+              className="w-full pl-7 pr-3 py-1.5 text-xs rounded-md bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+        </div>
+      )}
+
       {/* File Tree */}
       <div className="flex-1 overflow-y-auto p-2">
         {tree.length > 0 ? (
-          <FileTree nodes={tree} onSelectFile={onSelectFile} selectedFile={selectedFile} />
+          <FileTree nodes={tree} onSelectFile={onSelectFile} selectedFile={selectedFile} filter={filter} />
         ) : (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
             No repository loaded
