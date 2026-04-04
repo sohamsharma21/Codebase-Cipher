@@ -9,6 +9,7 @@ import RightPanel from '@/components/RightPanel';
 import { useGitHubAnalysis } from '@/hooks/useGitHubAnalysis';
 
 function GitVizzApp() {
+  const navigate = useNavigate();
   const analysis = useGitHubAnalysis();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState([]);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState([]);
