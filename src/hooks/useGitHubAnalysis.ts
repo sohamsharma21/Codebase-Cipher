@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { RepoFile, APIEndpoint, AnalysisProgress, RepoInfo, ParsedFunction, PerformanceMetrics } from '@/types';
+import type { RepoFile, APIEndpoint, AnalysisProgress, RepoInfo, ParsedFunction, PerformanceMetrics, DatabaseInteraction, ExecutionFlow, ArchitectureLayers } from '@/types';
 import type { Node, Edge } from '@xyflow/react';
 import { parseGitHubUrl } from '@/lib/parser';
 import { getDemoNodes, getDemoEdges, getDemoFiles, getDemoEndpoints, DEMO_REPO_INFO } from '@/lib/demoData';
@@ -28,6 +28,10 @@ export function useGitHubAnalysis() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [endpoints, setEndpoints] = useState<APIEndpoint[]>([]);
   const [functionMap, setFunctionMap] = useState<Record<string, ParsedFunction[]>>({});
+  const [dbInteractions, setDbInteractions] = useState<DatabaseInteraction[]>([]);
+  const [executionFlows, setExecutionFlows] = useState<ExecutionFlow[]>([]);
+  const [dbFrameworks, setDbFrameworks] = useState<string[]>([]);
+  const [layers, setLayers] = useState<ArchitectureLayers>({ frontend: [], backend: [], database: [], middleware: [], config: [] });
   const [repoInfo, setRepoInfo] = useState<RepoInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<AnalysisProgress>({ step: 0, message: '', done: false });
@@ -41,11 +45,16 @@ export function useGitHubAnalysis() {
     setEdges(getDemoEdges());
     setEndpoints(getDemoEndpoints());
     setFunctionMap({});
+    setDbInteractions([]);
+    setExecutionFlows([]);
+    setDbFrameworks([]);
+    setLayers({ frontend: [], backend: [], database: [], middleware: [], config: [] });
     setRepoInfo(DEMO_REPO_INFO);
     setMetrics({
       startTime: Date.now(), endTime: Date.now(), duration: 0,
       filesAnalyzed: 14, nodesCount: 14, edgesCount: 13,
-      functionsCount: 0, endpointsCount: 0, cached: false,
+      functionsCount: 0, endpointsCount: 0,
+      dbInteractionsCount: 0, flowsCount: 0, cached: false,
     });
     setProgress({ step: 5, message: '✅ Demo loaded!', done: true });
   }, []);
@@ -75,7 +84,6 @@ export function useGitHubAnalysis() {
 
       setProgress({ step: 3, message: '🕸️ Building dependency graph...', done: false });
 
-      // Set repo info
       setRepoInfo({
         owner: data.repoInfo.owner,
         repo: data.repoInfo.repo,
@@ -85,24 +93,24 @@ export function useGitHubAnalysis() {
         defaultBranch: data.repoInfo.defaultBranch,
       });
 
-      // Set files (merge allFiles with content from parsed files)
       const allFiles: RepoFile[] = (data.allFiles || []).map((f: any) => ({
         path: f.path, type: f.type || 'blob', size: f.size,
       }));
       setFiles(allFiles);
-
-      // Set endpoints and function map
       setEndpoints(data.endpoints || []);
       setFunctionMap(data.functionMap || {});
+      setDbInteractions(data.dbInteractions || []);
+      setExecutionFlows(data.executionFlows || []);
+      setDbFrameworks(data.dbFrameworks || []);
+      setLayers(data.layers || { frontend: [], backend: [], database: [], middleware: [], config: [] });
 
       setProgress({ step: 4, message: '📐 Laying out graph nodes...', done: false });
 
-      // Build React Flow nodes from server response
       const serverNodes = (data.nodes || []).map((n: any, i: number) => ({
         id: n.id,
         type: 'fileNode',
         position: { x: (i % 8) * 220, y: Math.floor(i / 8) * 120 },
-        data: { label: n.data?.label || n.id, filePath: n.data?.filePath || n.id },
+        data: { label: n.data?.label || n.id, filePath: n.data?.filePath || n.id, role: n.data?.role || 'utility' },
       }));
 
       const serverEdges: Edge[] = (data.edges || []).map((e: any) => ({
@@ -110,6 +118,7 @@ export function useGitHubAnalysis() {
         source: e.source,
         target: e.target,
         animated: true,
+        edgeType: e.edgeType || 'import',
       }));
 
       const laidOut = layoutNodes(serverNodes, serverEdges);
@@ -125,10 +134,12 @@ export function useGitHubAnalysis() {
         edgesCount: serverEdges.length,
         functionsCount: data.stats?.totalFunctions || 0,
         endpointsCount: data.stats?.totalEndpoints || 0,
+        dbInteractionsCount: data.stats?.totalDbInteractions || 0,
+        flowsCount: data.stats?.totalFlows || 0,
         cached: data.cached || false,
       });
 
-      const truncMsg = data.truncated ? ' (truncated to 200 files)' : '';
+      const truncMsg = data.truncated ? ' (truncated to 500 files)' : '';
       const cachedMsg = data.cached ? ' (cached)' : '';
       setProgress({
         step: 5,
@@ -145,6 +156,7 @@ export function useGitHubAnalysis() {
 
   return {
     files, nodes, edges, endpoints, functionMap, repoInfo,
+    dbInteractions, executionFlows, dbFrameworks, layers,
     loading, progress, isDemo, metrics,
     analyze, loadDemo, setNodes, setEdges,
   };
