@@ -128,7 +128,7 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
   const visibleTabs = tabs.filter(t => !t.hideIfNoFile || selectedFile);
 
   return (
-    <div className="w-[380px] shrink-0 border-l border-border bg-card flex flex-col h-full overflow-hidden shadow-2xl">
+    <div className="w-full shrink-0 border-l border-border bg-card flex flex-col h-full shadow-2xl">
       {/* Header */}
       <div className="p-3 border-b border-border bg-card/50 backdrop-blur-md">
         {selectedFile ? (
@@ -165,7 +165,7 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-y-auto flex flex-col">
         {activeTab === 'summary' && selectedFile && (
           <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-in fade-in duration-300">
             {loadingSummary ? (

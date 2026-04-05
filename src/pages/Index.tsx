@@ -212,8 +212,8 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
   const [mobilePanel, setMobilePanel] = useState<'left' | 'center' | 'right'>('left');
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[#0d1117] overflow-hidden text-[#e6edf3] font-sans selection:bg-[#58a6ff]/30 relative transition-all">
-      <header className="h-[52px] border-b border-[#30363d] bg-gradient-to-b from-[#161b22] to-[#0d1117] flex items-center px-4 shrink-0 shadow-sm z-30">
+    <div className="min-h-[100dvh] flex flex-col bg-[#0d1117] text-[#e6edf3] font-sans selection:bg-[#58a6ff]/30 relative transition-all">
+      <header className="h-[52px] border-b border-[#30363d] bg-gradient-to-b from-[#161b22] to-[#0d1117] flex items-center px-4 shrink-0 shadow-sm z-30 sticky top-0">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/')} className="p-1.5 rounded-lg hover:bg-white/5 text-[#8b949e] hover:text-white transition-colors" title="Back to home">
             <ArrowLeft className="w-4 h-4" />
@@ -300,7 +300,7 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
         )}
       </header>
 
-      <div className="flex flex-1 overflow-hidden relative z-10 w-full h-[calc(100vh-52px)]">
+      <div className="flex flex-1 relative z-10 w-full min-h-[calc(100vh-52px)]">
         {/* Left Panel - File Drawer */}
         <div className={`
            absolute sm:relative z-20 sm:z-0 h-full w-full sm:w-auto shrink-0 transition-transform duration-300
@@ -325,9 +325,9 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
         
         {/* Right Panel - Active Intelligence Tab */}
         <div className={`
-           absolute sm:relative z-20 sm:z-0 right-0 h-full w-full sm:w-[360px] lg:w-[400px] shrink-0 transition-transform duration-300
+           absolute sm:relative z-20 sm:z-0 right-0 w-full sm:w-[360px] lg:w-[400px] shrink-0 transition-transform duration-300
            ${mobilePanel === 'right' ? 'translate-x-0' : 'translate-x-full sm:translate-x-0'}
-           bg-[#0d1117] border-l border-[#30363d]
+           bg-[#0d1117] border-l border-[#30363d] sm:min-h-full
         `}>
            <RightPanel selectedFile={selectedFile} files={files} isDemo={isDemo} repoName={repoName} nodes={flowNodes} edges={flowEdges} />
         </div>
