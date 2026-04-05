@@ -76,7 +76,7 @@ function GitVizzApp() {
           <GitBranch className="w-5 h-5 text-primary" />
           <div>
             <span className="font-bold text-sm text-foreground">Codebase Cipher</span>
-            <span className="text-[9px] ml-1.5 px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">v2.0</span>
+            <span className="text-[9px] ml-1.5 px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">v3.0</span>
           </div>
         </div>
         {analysis.repoInfo && (
@@ -102,6 +102,8 @@ function GitVizzApp() {
           <span className="ml-3 text-[10px] text-muted-foreground">
             ⚡ {(analysis.metrics.duration / 1000).toFixed(1)}s
             {analysis.metrics.cached && ' (cached)'}
+            {analysis.metrics.flowsCount > 0 && ` • ${analysis.metrics.flowsCount} flows`}
+            {analysis.metrics.dbInteractionsCount > 0 && ` • ${analysis.metrics.dbInteractionsCount} DB ops`}
           </span>
         )}
         <div className="flex-1" />
@@ -145,6 +147,10 @@ function GitVizzApp() {
           onAnalyze={handleAnalyze} onLoadDemo={handleLoadDemo} onSelectFile={setSelectedFile} selectedFile={selectedFile} />
         <CenterPanel nodes={flowNodes} edges={flowEdges} endpoints={analysis.endpoints}
           functionMap={analysis.functionMap} metrics={analysis.metrics}
+          dbInteractions={analysis.dbInteractions}
+          executionFlows={analysis.executionFlows}
+          dbFrameworks={analysis.dbFrameworks}
+          layers={analysis.layers}
           selectedFile={selectedFile}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={setSelectedFile} hasData={hasData} />
         <RightPanel selectedFile={selectedFile} files={analysis.files} isDemo={analysis.isDemo} repoName={repoName} />
