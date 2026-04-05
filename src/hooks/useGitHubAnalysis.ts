@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { RepoFile, APIEndpoint, AnalysisProgress, RepoInfo, ParsedFunction, PerformanceMetrics, DatabaseInteraction, ExecutionFlow, ArchitectureLayers } from '@/types';
 import type { Node, Edge } from '@xyflow/react';
-import { parseGitHubUrl } from '@/lib/parser';
+import { parseGitHubUrl, parseImports, resolveImportPath } from '@/lib/parser';
 import { getDemoNodes, getDemoEdges, getDemoFiles, getDemoEndpoints, DEMO_REPO_INFO } from '@/lib/demoData';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
