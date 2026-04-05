@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { generateGraphInsights, GraphInsight } from '@/lib/graphInsights';
-import { GraphNode, GraphEdge } from '@/lib/parser';
+import { generateGraphInsights } from '@/lib/graphInsights';
 import { AlertCircle, Target, TrendingUp, Layers, Code, Zap } from 'lucide-react';
 
+interface AnyNode { id: string; [key: string]: any; }
+interface AnyEdge { id: string; source: string; target: string; [key: string]: any; }
+
 interface GraphInsightsPanelProps {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
+  nodes: AnyNode[];
+  edges: AnyEdge[];
 }
 
 const IconMap: Record<string, any> = {
@@ -23,9 +25,20 @@ const ColorMap: Record<string, string> = {
 };
 
 export default function GraphInsightsPanel({ nodes, edges }: GraphInsightsPanelProps) {
-  const insights = useMemo(() => generateGraphInsights(nodes, edges), [nodes, edges]);
+  const insights = useMemo(() => generateGraphInsights(
+    nodes.map(n => ({ id: n.id, type: n.type || 'file', data: n.data || { label: n.id, filePath: n.id }, ...n })),
+    edges.map(e => ({ id: e.id, source: e.source, target: e.target, ...e }))
+  ), [nodes, edges]);
 
-  if (nodes.length === 0) return null;
+  if (nodes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center h-48">
+        <Zap className="w-8 h-8 text-muted-foreground/30 mb-3" />
+        <p className="text-sm text-muted-foreground">No graph data yet</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Analyze a repository to see insights</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 p-4 animate-in fade-in slide-in-from-bottom-2 duration-500">

@@ -180,6 +180,41 @@ export default function HealthReport({ stats, cycles, onSelectFile }: HealthRepo
         </div>
       </div>
 
+      {/* Dead Code Detection */}
+      {stats.deadFiles && stats.deadFiles.length > 0 && (
+        <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-1 text-xl">🪦</div>
+            <div className="flex-1">
+              <h3 className="text-[13px] font-medium text-[#e6edf3] mb-1">
+                Potentially Dead Code ({stats.deadFiles.length} files)
+              </h3>
+              <p className="text-[11px] text-[#8b949e] mb-3">
+                These files are not imported by any other file reachable from entry points and may be unused:
+              </p>
+              
+              <div className="space-y-1.5 max-h-32 overflow-y-auto pr-2 mb-3">
+                {stats.deadFiles.map(f => (
+                  <button 
+                    key={f}
+                    onClick={() => onSelectFile(f)}
+                    className="flex items-center gap-2 w-full text-left p-1.5 rounded bg-[#0d1117] hover:bg-[#21262d] border border-[#30363d]/50 group transition-colors"
+                  >
+                    <FileText className="w-3 h-3 text-[#8b949e] group-hover:text-[#58a6ff]" />
+                    <span className="text-[10px] font-mono text-[#c9d1d9] truncate">{f}</span>
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex items-start gap-2 p-2 bg-[#d29922]/10 border border-[#d29922]/30 rounded text-[10px] text-[#d29922]">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <p>Always verify before deleting. These could be entry points or dynamically imported.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AI Recommendations */}
       <div className="bg-card border border-border rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">

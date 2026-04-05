@@ -57,7 +57,7 @@ function layoutNodesWithDagre(nodes: Node[], edges: Edge[]): Node[] {
   });
 }
 
-export function useClusteredGraph(allNodes: Node[], allEdges: Edge[]): UseClusteredGraphReturn {
+export function useClusteredGraph(allNodes: Node[] = [], allEdges: Edge[] = []): UseClusteredGraphReturn {
   const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
 

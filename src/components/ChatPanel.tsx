@@ -2,12 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Trash2, Bot, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { RepoFile } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  isQuick?: boolean;
-  isRefined?: boolean;
 }
 
 interface ChatPanelProps {
@@ -46,57 +45,41 @@ export default function ChatPanel({ selectedFile, files, repoName }: ChatPanelPr
     setInput('');
     setLoading(true);
 
-    // Using our new Scalable Backend Orchestrator (Gemini/Claude hybrid)
     try {
-      const startTime = Date.now();
-      const response = await fetch('http://localhost:3001/analyze-node', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repoId: repoName || 'default',
-          nodeId: fileContext || 'root',
-          repoPath: '/',
-          nodes: [], // Visible nodes for context
-          edges: [], // Visible edges for context
-          query: text.trim()
-        }),
+      // Find file content for context
+      const contextFile = files.find(f => f.path === fileContext);
+      const fileContent = contextFile?.content?.slice(0, 3000) || '';
+
+      const { data, error } = await supabase.functions.invoke('chat-with-code', {
+        body: {
+          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          fileContext: fileContext,
+          fileContent,
+          repoName: repoName || '',
+          query: text.trim(),
+        },
       });
 
-      if (!response.ok) throw new Error('Backend unreachabe');
-      const data = await response.json();
-      
-      // Tier 1: Gemini Fast Result
-      if (data.primary) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: data.primary,
-          isQuick: true 
-        }]);
-      }
+      if (error) throw error;
 
-      // Tier 2: Claude Refined Result (if available)
-      if (data.refined) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: data.refined,
-          isRefined: true 
-        }]);
-      }
-      
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      window.dispatchEvent(new CustomEvent('gitvizz:llm-metrics', { detail: { duration } }));
-      
+      const reply = data?.reply || data?.message || data?.content || 'I could not generate a response. Please try again.';
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: reply,
+      }]);
     } catch (err) {
-      console.error('Analysis error:', err);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'I had trouble reaching the analysis engine. Ensure the backend server is running.' 
+      console.error('Chat error:', err);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `I can help you analyze this codebase! ${fileContext
+          ? `You're looking at **${fileContext.split('/').pop()}**. `
+          : ''}Ask me about architecture, dependencies, or code quality. Note: AI analysis requires the Supabase backend to be connected.`,
       }]);
     } finally {
       setLoading(false);
     }
-  }, [loading, messages, fileContext, repoName]);
+  }, [loading, messages, fileContext, repoName, files]);
 
   const handleSend = useCallback(() => {
     sendMessage(input);
@@ -136,7 +119,7 @@ export default function ChatPanel({ selectedFile, files, repoName }: ChatPanelPr
         )}
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[88%] rounded-xl px-3.5 py-2.5 text-xs relative ${
+            <div className={`max-w-[88%] rounded-xl px-3.5 py-2.5 text-xs ${
               msg.role === 'user'
                 ? 'bg-primary text-white shadow-md'
                 : 'bg-card border border-border text-foreground shadow-sm'
@@ -144,12 +127,7 @@ export default function ChatPanel({ selectedFile, files, repoName }: ChatPanelPr
               {msg.role === 'assistant' && (
                 <div className="flex items-center gap-2 mb-2 border-b border-border/50 pb-2">
                   <Bot className="w-4 h-4 text-primary" />
-                  {msg.isQuick && (
-                    <span className="text-[8px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded uppercase tracking-widest border border-blue-500/20">Gemini Fast</span>
-                  )}
-                  {msg.isRefined && (
-                    <span className="text-[8px] font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded uppercase tracking-widest border border-violet-500/20">Claude Refined</span>
-                  )}
+                  <span className="text-[8px] font-bold text-primary/80 bg-primary/10 px-2 py-0.5 rounded uppercase tracking-widest">AI Assistant</span>
                 </div>
               )}
               <div className="prose prose-invert prose-xs max-w-none [&_p]:leading-relaxed">
@@ -185,7 +163,7 @@ export default function ChatPanel({ selectedFile, files, repoName }: ChatPanelPr
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder="Search code or ask a question..."
+            placeholder="Ask about this code..."
             className="flex-1 text-xs px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
           />
           <button

@@ -33,7 +33,7 @@ export default function LandingNav() {
             </a>
           ))}
           <button
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/dashboard')}
             className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:shadow-[0_0_15px_hsl(212_100%_67%/0.3)] transition-shadow"
           >
             Launch App
@@ -59,7 +59,7 @@ export default function LandingNav() {
                 {l.label}
               </a>
             ))}
-            <button onClick={() => { setOpen(false); navigate('/app'); }}
+            <button onClick={() => { setOpen(false); navigate('/dashboard'); }}
               className="w-full mt-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold"
             >
               Launch App

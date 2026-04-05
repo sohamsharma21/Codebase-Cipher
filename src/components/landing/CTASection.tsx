@@ -25,7 +25,7 @@ export default function CTASection() {
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/dashboard')}
             className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold shadow-[0_0_40px_hsl(212_100%_67%/0.35)] hover:shadow-[0_0_60px_hsl(212_100%_67%/0.5)] transition-shadow"
           >
             Start Free Analysis

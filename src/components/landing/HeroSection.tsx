@@ -50,7 +50,7 @@ export default function HeroSection() {
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => navigate('/app')}
+                onClick={() => navigate('/dashboard')}
                 className="group flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-[0_0_30px_hsl(212_100%_67%/0.3)] hover:shadow-[0_0_40px_hsl(212_100%_67%/0.5)] transition-shadow"
               >
                 Analyze Repository
@@ -59,7 +59,7 @@ export default function HeroSection() {
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => navigate('/app?demo=true')}
+                onClick={() => navigate('/dashboard?demo=true')}
                 className="px-6 py-3 rounded-xl border border-border bg-card/50 backdrop-blur-sm text-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors"
               >
                 View Demo

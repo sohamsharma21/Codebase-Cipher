@@ -76,7 +76,7 @@ export default function PricingSection() {
                 <span className="text-sm text-muted-foreground">{t.period}</span>
               </div>
               <button
-                onClick={() => navigate('/app')}
+                onClick={() => navigate('/dashboard')}
                 className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
                   t.highlighted
                     ? 'bg-primary text-primary-foreground hover:shadow-[0_0_20px_hsl(212_100%_67%/0.3)]'

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Wand2, Copy, Check, FileCode, Loader2, Zap, BookOpen, Package, Tag, Gauge, MessageSquare, Code, Sparkles, Target, TrendingUp, AlertCircle, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wand2, Copy, Check, Loader2, Zap, BookOpen, Package, Tag, Gauge, MessageSquare, Code, Sparkles, GitMerge } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { RepoFile, AISummary } from '@/types';
@@ -8,15 +8,15 @@ import { getDemoSummary } from '@/lib/demoData';
 import { supabase } from '@/integrations/supabase/client';
 import ChatPanel from './ChatPanel';
 import GraphInsightsPanel from './GraphInsightsPanel';
-import { GraphNode, GraphEdge } from '@/lib/parser';
+import FlowDiagramPanel from './FlowDiagramPanel';
 
 interface RightPanelProps {
   selectedFile?: string;
   files: RepoFile[];
   isDemo: boolean;
   repoName?: string;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
+  nodes: { id: string; [key: string]: any }[];
+  edges: { id: string; source: string; target: string; [key: string]: any }[];
 }
 
 const langMap: Record<string, string> = {
@@ -32,11 +32,32 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'summary' | 'code' | 'chat' | 'insights'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'code' | 'flow' | 'chat' | 'insights'>('summary');
 
   const file = files.find(f => f.path === selectedFile);
   const ext = selectedFile ? getFileExtension(selectedFile) : '';
   const lang = langMap[ext] || 'text';
+
+  // Feature 3B: Dependency Impact Analysis (BFS backward traversal)
+  const impactedFiles = React.useMemo(() => {
+    if (!selectedFile || !edges?.length) return [];
+    
+    const impacted = new Set<string>();
+    const queue = [selectedFile];
+    
+    while(queue.length > 0) {
+      const current = queue.shift()!;
+      // files that import `current`
+      const incoming = edges.filter(e => e.target === current);
+      for (const e of incoming) {
+        if (!impacted.has(e.source)) {
+          impacted.add(e.source);
+          queue.push(e.source);
+        }
+      }
+    }
+    return Array.from(impacted);
+  }, [selectedFile, edges]);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -45,7 +66,7 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
     }
     
     setSummary(null);
-    if (activeTab === 'code' || activeTab === 'chat' || activeTab === 'insights') {
+    if (activeTab === 'code' || activeTab === 'chat' || activeTab === 'flow' || activeTab === 'insights') {
       // stay on current tab
     } else {
       setActiveTab('summary');
@@ -98,6 +119,7 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
 
   const tabs = [
     { id: 'summary' as const, label: 'Summary', icon: Wand2, hideIfNoFile: true },
+    { id: 'flow' as const, label: 'Flow', icon: GitMerge, hideIfNoFile: true },
     { id: 'code' as const, label: 'Source', icon: Code, hideIfNoFile: true },
     { id: 'chat' as const, label: 'Chat', icon: MessageSquare, hideIfNoFile: true },
     { id: 'insights' as const, label: 'Insights', icon: Sparkles, hideIfNoFile: false },
@@ -154,9 +176,54 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
               </div>
             ) : summary ? (
               <>
+                {(() => {
+                  const currentNodeData = Object.values(nodes || {}).find((n: any) => n.id === selectedFile)?.data as any;
+                  if (!currentNodeData) return null;
+                  
+                  return (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xl">{currentNodeData.icon || '📄'}</span>
+                        <h3 className="font-bold text-foreground text-sm flex-1 truncate">{currentNodeData.label || 'File Component'}</h3>
+                        <span className="text-[9px] px-2 py-0.5 rounded-full uppercase font-mono tracking-widest border" style={{ color: currentNodeData.color, borderColor: `${currentNodeData.color}40`, backgroundColor: `${currentNodeData.color}15` }}>
+                          {currentNodeData.entityType || 'UNKNOWN'}
+                        </span>
+                      </div>
+                      
+                      {currentNodeData.entityType === 'API_ROUTE' && currentNodeData.routes && (
+                        <div className="p-3 bg-[#161b22] border border-[#58a6ff]/30 rounded-lg">
+                           <div className="text-[10px] text-[#58a6ff] font-bold uppercase mb-2 flex items-center gap-1"><Zap className="w-3 h-3"/> Discovered Endpoints</div>
+                           <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                              {currentNodeData.routes.map((r: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-[10px] items-center font-mono bg-[#0d1117] p-1.5 rounded border border-[#30363d]">
+                                  <span className="text-[#58a6ff] font-bold min-w-[36px]">{r.method}</span>
+                                  <span className="text-foreground truncate">{r.path}</span>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      )}
+                      
+                      {(currentNodeData.entityType === 'DATABASE' || currentNodeData.entityType === 'MODEL') && currentNodeData.dbOps?.length > 0 && (
+                        <div className="p-3 bg-[#161b22] border border-[#f0883e]/30 rounded-lg">
+                           <div className="text-[10px] text-[#f0883e] font-bold uppercase mb-2 flex items-center gap-1"><Package className="w-3 h-3"/> Database Operations</div>
+                           <div className="space-y-1 overflow-y-auto max-h-32">
+                              {currentNodeData.dbOps.map((op: any, i: number) => (
+                                <div key={i} className="flex gap-2 text-[10px] font-mono items-center">
+                                  <span className="text-[#8b949e]">»</span>
+                                  <span className="text-foreground truncate">{op.label}</span>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div className="group p-3 rounded-xl bg-secondary/30 border border-border/50 hover:border-primary/30 transition-all">
                   <div className="flex items-center gap-2 mb-2 text-primary">
-                    <Zap className="w-3.5 h-3.5" />
+                    <Sparkles className="w-3.5 h-3.5" />
                     <p className="text-[10px] font-bold uppercase tracking-widest">Purpose</p>
                   </div>
                   <p className="text-xs text-foreground leading-relaxed">{summary.purpose}</p>
@@ -181,6 +248,27 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
                         <span key={d} className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
                           {d.split('/').pop()}
                         </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Feature 3B: Impact Analysis section */}
+                {impactedFiles.length > 0 && (
+                  <div className="group p-3 rounded-xl bg-[hsl(var(--orange))]/10 border border-[hsl(var(--orange))]/30 hover:border-[hsl(var(--orange))]/50 transition-all">
+                    <div className="flex items-center gap-2 mb-2 text-[hsl(var(--orange))]">
+                      <GitMerge className="w-3.5 h-3.5" />
+                      <p className="text-[10px] font-bold uppercase tracking-widest">Impact Analysis</p>
+                    </div>
+                    <p className="text-[11px] text-[#c9d1d9] mb-2 leading-tight">
+                      Modifying this file could affect <span className="font-bold text-white">{impactedFiles.length} downstream files</span>:
+                    </p>
+                    <div className="max-h-24 overflow-y-auto pr-1 space-y-1">
+                      {impactedFiles.map((f, i) => (
+                        <div key={f} className="text-[10px] text-[#8b949e] font-mono flex gap-2">
+                          <span className="opacity-50">{i + 1}.</span>
+                          <span className="truncate" title={f}>{f.split('/').pop()}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -245,6 +333,12 @@ export default function RightPanel({ selectedFile, files, isDemo, repoName, node
         {activeTab === 'chat' && (
           <div className="flex-1 overflow-hidden animate-in fade-in duration-300">
             <ChatPanel selectedFile={selectedFile} files={files} repoName={repoName} />
+          </div>
+        )}
+
+        {activeTab === 'flow' && selectedFile && (
+          <div className="flex-1 overflow-hidden animate-in fade-in duration-300 bg-[#0d1117]">
+            <FlowDiagramPanel filePath={selectedFile} fileContent={file?.content || ''} isDemo={isDemo} />
           </div>
         )}
 

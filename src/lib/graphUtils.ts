@@ -5,7 +5,7 @@ export interface CycleInfo {
   edgeIds: string[];
 }
 
-export function detectCircularDeps(nodes: Node[], edges: Edge[]): CycleInfo[] {
+export function detectCircularDeps(nodes: Node[] = [], edges: Edge[] = []): CycleInfo[] {
   const graph: Record<string, string[]> = {};
   edges.forEach(e => {
     if (!graph[e.source]) graph[e.source] = [];
@@ -66,13 +66,14 @@ export interface HealthStats {
   configFiles: number;
   circularDeps: number;
   orphanFiles: string[];
+  deadFiles: string[];
   avgImports: number;
   largeFiles: number;
   topComplex: { path: string; imports: number }[];
   score: number;
 }
 
-export function calculateHealth(nodes: Node[], edges: Edge[], cycles: CycleInfo[]): HealthStats {
+export function calculateHealth(nodes: Node[] = [], edges: Edge[] = [], cycles: CycleInfo[] = []): HealthStats {
   const jsFiles = nodes.filter(n => /\.(js|jsx|mjs|cjs)$/.test(n.id)).length;
   const tsFiles = nodes.filter(n => /\.(ts|tsx)$/.test(n.id)).length;
   const configFiles = nodes.filter(n => /\.(json|yaml|yml|toml)$/.test(n.id)).length;
@@ -101,11 +102,34 @@ export function calculateHealth(nodes: Node[], edges: Edge[], cycles: CycleInfo[
   // Large files placeholder (we don't have line counts, estimate by content)
   const largeFiles = 0;
 
+  // Dead files prediction
+  const entryPoints = nodes.filter(n => n.data?.isEntry).map(n => n.id);
+  const reachable = new Set<string>();
+  const queue = [...entryPoints];
+  
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (reachable.has(current)) continue;
+    reachable.add(current);
+    
+    // Find all files that current imports
+    const importedNodes = edges
+      .filter(e => e.source === current)
+      .map(e => e.target);
+    queue.push(...importedNodes);
+  }
+  
+  const deadFiles = nodes
+    .filter(n => !reachable.has(n.id))
+    .filter(n => !n.data?.isConfig) // ignore config files
+    .map(n => n.id);
+
   let score = 100;
   score -= Math.min(cycles.length * 10, 40);
   if (avgImports > 8) score -= 10;
   if (avgImports > 15) score -= 10;
   score -= Math.min(orphanFiles.length * 5, 20);
+  score -= Math.min(deadFiles.length * 2, 20); // Dead code penalty
   score -= Math.min(largeFiles * 5, 20);
   score = Math.max(0, score);
 
@@ -116,6 +140,7 @@ export function calculateHealth(nodes: Node[], edges: Edge[], cycles: CycleInfo[
     configFiles,
     circularDeps: cycles.length,
     orphanFiles,
+    deadFiles,
     avgImports: Math.round(avgImports * 10) / 10,
     largeFiles,
     topComplex,

@@ -5,21 +5,144 @@ import { parseGitHubUrl } from '@/lib/parser';
 import { getDemoNodes, getDemoEdges, getDemoFiles, getDemoEndpoints, DEMO_REPO_INFO } from '@/lib/demoData';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import dagre from 'dagre';
+import { extractEntity, extractRoutes, extractDbOperations, detectArchitecture, type ArchitectureMatch } from '@/lib/workflowAnalyzer';
 
-function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
-  if (nodes.length === 0) return [];
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: 'TB', nodesep: 80, ranksep: 100 });
-  nodes.forEach(n => g.setNode(n.id, { width: 200, height: 60 }));
-  edges.forEach(e => g.setEdge(e.source, e.target));
-  dagre.layout(g);
-  return nodes.map(n => {
-    const pos = g.node(n.id);
-    if (!pos) return n;
-    return { ...n, position: { x: pos.x - 100, y: pos.y - 30 } };
+const LANES = [
+  { id: 'client', label: 'Client / Entry', y: 40, height: 160, color: 'rgba(210, 153, 34, 0.05)', borderColor: 'rgba(210, 153, 34, 0.3)' },
+  { id: 'http', label: 'HTTP Layer', y: 220, height: 180, color: 'rgba(88, 166, 255, 0.05)', borderColor: 'rgba(88, 166, 255, 0.3)' },
+  { id: 'logic', label: 'Business Logic', y: 420, height: 180, color: 'rgba(63, 185, 80, 0.05)', borderColor: 'rgba(63, 185, 80, 0.3)' },
+  { id: 'data', label: 'Data Layer', y: 620, height: 180, color: 'rgba(240, 136, 62, 0.05)', borderColor: 'rgba(240, 136, 62, 0.3)' },
+  { id: 'database', label: 'Database', y: 820, height: 180, color: 'rgba(248, 81, 73, 0.05)', borderColor: 'rgba(248, 81, 73, 0.3)' }
+];
+
+function buildWorkflowGraph(rawNodes: any[], rawEdges: any[], allFiles: RepoFile[]) {
+  if (rawNodes.length === 0) return { nodes: [], edges: [], dbOpsRaw: [], routesRaw: [] };
+
+  const inDegree: Record<string, number> = {};
+  const outDegree: Record<string, number> = {};
+  rawNodes.forEach(n => { inDegree[n.id] = 0; outDegree[n.id] = 0; });
+  rawEdges.forEach(e => {
+    if (inDegree[e.target] !== undefined) inDegree[e.target]++;
+    if (outDegree[e.source] !== undefined) outDegree[e.source]++;
   });
+
+  const dbOpsRaw: any[] = [];
+  const routesRaw: any[] = [];
+  
+  // Extract entities & assign lanes
+  const fileEntities = new Map();
+  const laneCounts = [0, 0, 0, 0, 0];
+  
+  rawNodes.forEach(n => {
+    const file = allFiles.find(f => f.path === n.id);
+    const content = file?.content || '';
+    const entity = extractEntity(n.id, content);
+    
+    // Extract routes
+    if (entity.type === 'API_ROUTE') {
+      const detectedRoutes = extractRoutes(content, n.id);
+      if (detectedRoutes.length) {
+        routesRaw.push(...detectedRoutes);
+        (entity as any).routes = detectedRoutes;
+      }
+    }
+    // Extract DB ops
+    const ops = extractDbOperations(content, n.id);
+    if (ops.length) {
+      dbOpsRaw.push(...ops);
+      if (entity.type !== 'DATABASE') {
+        entity.type = 'MODEL'; // force data layer mapping if op detected
+        entity.layer = 3;
+      }
+    }
+    
+    let lIdx = entity.layer;
+    if (lIdx === undefined || lIdx > 4) lIdx = 3;
+    
+    fileEntities.set(n.id, { ...entity, laneIndex: lIdx, xPos: laneCounts[lIdx]++ });
+  });
+
+  const nodes: Node[] = [];
+  
+  // Conditionally generate lane background nodes
+  const activeLanes: number[] = [];
+  laneCounts.forEach((c, idx) => { if (c > 0) activeLanes.push(idx); });
+  
+  activeLanes.forEach(idx => {
+    const lane = LANES[idx];
+    nodes.push({
+      id: `lane-${lane.id}`,
+      type: 'laneNode',
+      position: { x: -200, y: lane.y },
+      data: lane,
+      selectable: false,
+      draggable: false,
+      zIndex: -1,
+    } as Node);
+  });
+
+  // Calculate Node coordinates
+  rawNodes.forEach(n => {
+    const entity = fileEntities.get(n.id);
+    if (!entity) return;
+    
+    const lane = LANES[entity.laneIndex];
+    if (!lane) return; // Should not happen
+
+    const y = lane.y + 40 + (entity.xPos % 2 === 0 ? 0 : 30); // staggered Y
+    const x = entity.xPos * 220;
+    
+    nodes.push({
+      id: n.id,
+      type: 'workflowNode',
+      position: { x, y },
+      data: {
+        ...entity,
+        filePath: n.id,
+        importsCount: outDegree[n.id] ?? 0,
+        usedByCount: inDegree[n.id] ?? 0,
+        entityType: entity.type,
+      },
+      zIndex: 1
+    } as Node);
+  });
+
+  // Smart Edges
+  const edges: Edge[] = rawEdges.map(e => {
+    const src = fileEntities.get(e.source);
+    const tgt = fileEntities.get(e.target);
+    
+    if (src && tgt) {
+      if (src.type === 'API_ROUTE' && (tgt.type === 'CONTROLLER' || tgt.type === 'SERVICE')) {
+        return {
+          id: e.id, source: e.source, target: e.target, type: 'smartEdge', data: { label: 'request', animated: true },
+          style: { stroke: '#58a6ff', strokeWidth: 2 }, markerEnd: { type: 'arrowclosed', color: '#58a6ff' }
+        };
+      }
+      if (tgt.type === 'DATABASE' || tgt.type === 'MODEL') {
+        const fileContent = allFiles.find(f => f.path === e.source)?.content || '';
+        const ops = extractDbOperations(fileContent, e.source);
+        const opLabel = ops.length > 0 ? ops[0].label : 'query';
+        return {
+          id: e.id, source: e.source, target: e.target, type: 'smartEdge', data: { label: opLabel, animated: true },
+          style: { stroke: '#f0883e', strokeWidth: 2 }, markerEnd: { type: 'arrowclosed', color: '#f0883e' }
+        };
+      }
+      if (src.type === 'MIDDLEWARE') {
+        return {
+          id: e.id, source: e.source, target: e.target, type: 'smartEdge', data: { label: 'guards' },
+          style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '5,3' }, markerEnd: { type: 'arrowclosed', color: '#a371f7' }
+        };
+      }
+    }
+    // Default
+    return {
+      id: e.id, source: e.source, target: e.target, type: 'smartEdge',
+      style: { stroke: '#30363d', strokeWidth: 1, opacity: 0.6 }
+    };
+  });
+
+  return { nodes, edges, dbOpsRaw, routesRaw };
 }
 
 export function useGitHubAnalysis() {
@@ -33,12 +156,24 @@ export function useGitHubAnalysis() {
   const [progress, setProgress] = useState<AnalysisProgress>({ step: 0, message: '', done: false });
   const [isDemo, setIsDemo] = useState(false);
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
+  
+  // Arch Tracking
+  const [architecture, setArchitecture] = useState<ArchitectureMatch | null>(null);
+  const [dbOps, setDbOps] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [currentFile, setCurrentFile] = useState<string>('');
 
   const loadDemo = useCallback(() => {
     setIsDemo(true);
     setFiles(getDemoFiles());
-    setNodes(getDemoNodes());
-    setEdges(getDemoEdges());
+    const demoNodes = getDemoNodes();
+    const demoEdges = getDemoEdges();
+    // Enrich demo nodes too
+    const inDeg: Record<string, number> = {};
+    demoNodes.forEach(n => { inDeg[n.id] = 0; });
+    demoEdges.forEach(e => { if (inDeg[e.target] !== undefined) inDeg[e.target]++; });
+    setNodes(buildEnrichedNodes(demoNodes, demoEdges));
+    setEdges(buildEnrichedEdges(demoEdges, inDeg));
     setEndpoints(getDemoEndpoints());
     setFunctionMap({});
     setRepoInfo(DEMO_REPO_INFO);
@@ -61,10 +196,11 @@ export function useGitHubAnalysis() {
     setLoading(true);
     setIsDemo(false);
     setMetrics(null);
-    setProgress({ step: 1, message: '📡 Sending to analysis engine...', done: false });
+    setCurrentFile('');
+    setProgress({ step: 1, message: 'Connecting to repository...', done: false });
 
     try {
-      setProgress({ step: 2, message: '🔍 Server is fetching and parsing repository...', done: false });
+      setProgress({ step: 2, message: 'Fetching file tree from GitHub...', done: false });
 
       const { data, error } = await supabase.functions.invoke('analyze-repo', {
         body: { owner: parsed.owner, repo: parsed.repo },
@@ -73,9 +209,8 @@ export function useGitHubAnalysis() {
       if (error) throw new Error(error.message || 'Analysis failed');
       if (data.error) throw new Error(data.error);
 
-      setProgress({ step: 3, message: '🕸️ Building dependency graph...', done: false });
+      setProgress({ step: 3, message: 'Parsing imports and dependencies...', done: false });
 
-      // Set repo info
       setRepoInfo({
         owner: data.repoInfo.owner,
         repo: data.repoInfo.repo,
@@ -85,44 +220,47 @@ export function useGitHubAnalysis() {
         defaultBranch: data.repoInfo.defaultBranch,
       });
 
-      // Set files (merge allFiles with content from parsed files)
       const allFiles: RepoFile[] = (data.allFiles || []).map((f: any) => ({
         path: f.path, type: f.type || 'blob', size: f.size,
       }));
       setFiles(allFiles);
-
-      // Set endpoints and function map
       setEndpoints(data.endpoints || []);
-      setFunctionMap(data.functionMap || {});
+      setFunctionMap(data.functionMap || []);
 
-      setProgress({ step: 4, message: '📐 Laying out graph nodes...', done: false });
+      // Show "currently reading" last files
+      const codeFiles = allFiles.filter(f => f.type === 'blob' && /\.(js|ts|jsx|tsx|mjs)$/.test(f.path));
+      if (codeFiles.length > 0) {
+        setCurrentFile(codeFiles[codeFiles.length - 1].path);
+      }
 
-      // Build React Flow nodes from server response
-      const serverNodes = (data.nodes || []).map((n: any, i: number) => ({
-        id: n.id,
-        type: 'fileNode',
-        position: { x: (i % 8) * 220, y: Math.floor(i / 8) * 120 },
-        data: { label: n.data?.label || n.id, filePath: n.data?.filePath || n.id },
-      }));
+      setProgress({ step: 4, message: 'Building hierarchical dependency graph...', done: false });
 
-      const serverEdges: Edge[] = (data.edges || []).map((e: any) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        animated: true,
-      }));
+      const rawNodes = data.nodes || [];
+      const rawEdges = data.edges || [];
 
-      const laidOut = layoutNodes(serverNodes, serverEdges);
-      setNodes(laidOut);
-      setEdges(serverEdges);
+      // Architecture detect
+      const pkgFile = allFiles.find(f => f.path.endsWith('package.json'))?.content;
+      const arch = detectArchitecture(allFiles, pkgFile);
+      setArchitecture(arch);
+
+      // Workflow topology map layout
+      setProgress({ step: 4, message: `Building topological map for ${arch.description}...`, done: false });
+      
+      const { nodes: enrichedNodes, edges: enrichedEdges, dbOpsRaw, routesRaw } = buildWorkflowGraph(rawNodes, rawEdges, allFiles);
+      setDbOps(dbOpsRaw);
+      setRoutes(routesRaw);
+
+      setNodes(enrichedNodes);
+      setEdges(enrichedEdges);
+      setCurrentFile('');
 
       const endTime = Date.now();
       setMetrics({
         startTime, endTime,
         duration: endTime - startTime,
-        filesAnalyzed: data.stats?.totalFiles || serverNodes.length,
-        nodesCount: serverNodes.length,
-        edgesCount: serverEdges.length,
+        filesAnalyzed: data.stats?.totalFiles || enrichedNodes.length,
+        nodesCount: enrichedNodes.length,
+        edgesCount: enrichedEdges.length,
         functionsCount: data.stats?.totalFunctions || 0,
         endpointsCount: data.stats?.totalEndpoints || 0,
         cached: data.cached || false,
@@ -132,12 +270,42 @@ export function useGitHubAnalysis() {
       const cachedMsg = data.cached ? ' (cached)' : '';
       setProgress({
         step: 5,
-        message: `✅ ${serverNodes.length} nodes, ${serverEdges.length} connections${truncMsg}${cachedMsg}`,
+        message: `${enrichedNodes.length} files, ${enrichedEdges.length} connections${truncMsg}${cachedMsg}`,
         done: true,
       });
+
+      // Success toast
+      toast.success(`✅ Analysis complete — ${enrichedNodes.length} files, ${enrichedEdges.length} connections`, {
+        duration: 4000,
+      });
+
+      // Save to history
+      try {
+        const historyRaw = localStorage.getItem('gitvizz_history');
+        let history = historyRaw ? JSON.parse(historyRaw) : [];
+        const newEntry = {
+          repo: `${parsed.owner}/${parsed.repo}`,
+          timestamp: Date.now(),
+          fileCount: enrichedNodes.length,
+          healthScore: 100 // placeholder since health is calculated later
+        };
+        // Remove existing if same repo
+        history = history.filter((h: any) => h.repo !== newEntry.repo);
+        // Add new to front
+        history.unshift(newEntry);
+        // Keep max 5
+        if (history.length > 5) history = history.slice(0, 5);
+        localStorage.setItem('gitvizz_history', JSON.stringify(history));
+        // Dispatch custom event to tell LeftPanel to re-read
+        window.dispatchEvent(new Event('gitvizz_history_updated'));
+      } catch (e) {
+        console.error('Failed to save gitvizz history', e);
+      }
+
     } catch (err: any) {
       toast.error(err.message || 'Analysis failed');
       setProgress({ step: 0, message: '', done: false });
+      setCurrentFile('');
     } finally {
       setLoading(false);
     }
@@ -145,7 +313,7 @@ export function useGitHubAnalysis() {
 
   return {
     files, nodes, edges, endpoints, functionMap, repoInfo,
-    loading, progress, isDemo, metrics,
+    loading, progress, isDemo, metrics, currentFile,
     analyze, loadDemo, setNodes, setEdges,
   };
 }
