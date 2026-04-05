@@ -14,7 +14,7 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <GitBranch className="w-5 h-5 text-primary" />
-              <span className="font-bold text-foreground">Codebase Cipher</span>
+              <span className="font-bold text-foreground">GitVizz</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Illuminate every codebase with AI-powered visual analysis.
@@ -36,7 +36,7 @@ export default function Footer() {
           ))}
         </div>
         <div className="mt-12 pt-6 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-[11px] text-muted-foreground">© 2026 Codebase Cipher. All rights reserved.</p>
+          <p className="text-[11px] text-muted-foreground">© 2026 GitVizz. All rights reserved.</p>
           <div className="flex gap-4">
             {['GitHub', 'Twitter', 'Discord'].map(s => (
               <a key={s} href="#" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">{s}</a>

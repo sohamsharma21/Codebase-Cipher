@@ -22,7 +22,7 @@ export default function LandingNav() {
       <div className="container mx-auto px-6 h-14 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2">
           <GitBranch className="w-5 h-5 text-primary" />
-          <span className="font-bold text-sm text-foreground">Codebase Cipher</span>
+          <span className="font-bold text-sm text-foreground">GitVizz</span>
         </a>
 
         {/* Desktop */}

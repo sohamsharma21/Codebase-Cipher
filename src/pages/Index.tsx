@@ -222,7 +222,7 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-sm" />
           </div>
           <div className="hidden sm:block">
-            <span className="font-extrabold text-[15px] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-[#8b949e]">Codebase Cipher</span>
+            <span className="font-extrabold text-[15px] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-[#8b949e]">GitVizz</span>
             <span className="text-[9px] ml-2 px-2 py-0.5 rounded-full border border-[#58a6ff]/30 bg-[#58a6ff]/10 text-[#58a6ff] font-mono tracking-widest font-semibold uppercase">v3.0 PWA</span>
           </div>
         </div>
