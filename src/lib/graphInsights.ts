@@ -38,8 +38,10 @@ export function generateGraphInsights(nodes: GraphNode[], edges: GraphEdge[]): G
   }
 
   // 3. Identify Hotspots (High In-degree)
-  const sortedByInDegree = [...nodes].sort((a, b) => inDegree[b.id] - inDegree[a.id]);
-  const hotspots = sortedByInDegree.slice(0, 3).filter(n => inDegree[n.id] > 5);
+  const sortedByInDegree = [...nodes].sort((a, b) => (inDegree[b.id] || 0) - (inDegree[a.id] || 0));
+  // Dynamic threshold: at least 3 connections or top 5% of nodes
+  const dThreshold = Math.max(3, Math.floor(nodes.length * 0.05));
+  const hotspots = sortedByInDegree.slice(0, 5).filter(n => (inDegree[n.id] || 0) >= dThreshold);
   if (hotspots.length > 0) {
     insights.push({
       type: 'hotspot',
@@ -51,11 +53,11 @@ export function generateGraphInsights(nodes: GraphNode[], edges: GraphEdge[]): G
   }
 
   // 4. Identify Orphans (In-degree == 0, excluding entry points and common configs)
-  const ignores = ['package.json', 'tsconfig.json', 'README.md', '.gitignore'];
+  const ignores = ['package.json', 'tsconfig.json', 'README.md', '.gitignore', 'vite.config', 'tailwind.config', 'next.config'];
   const orphans = nodes.filter(n => 
-    inDegree[n.id] === 0 && 
-    outDegree[n.id] === 0 && 
-    !ignores.some(ig => n.id.includes(ig))
+    (inDegree[n.id] || 0) === 0 && 
+    (outDegree[n.id] || 0) === 0 && 
+    !ignores.some(ig => n.id.toLowerCase().includes(ig.toLowerCase()))
   );
   if (orphans.length > 0) {
     insights.push({
@@ -67,20 +69,28 @@ export function generateGraphInsights(nodes: GraphNode[], edges: GraphEdge[]): G
     });
   }
 
-  // 5. Identify Core Logic (High Out-degree + Centrality)
-  const coreModules = nodes.filter(n => outDegree[n.id] > 5 && n.id.includes('lib/'));
+  // 5. Identify Core Logic (Highest Out-degree)
+  const coreModules = [...nodes]
+    .sort((a, b) => (outDegree[b.id] || 0) - (outDegree[a.id] || 0))
+    .slice(0, 3)
+    .filter(n => (outDegree[n.id] || 0) >= 2);
+
   if (coreModules.length > 0) {
     insights.push({
       type: 'core',
-      title: 'Core System Modules',
-      description: 'Internal engines driving system logic. These orchestrate multiple sub-dependencies.',
+      title: 'Core Business Engines',
+      description: 'Internal components driving system logic. These orchestrate multiple sub-dependencies.',
       files: coreModules.map(n => n.id),
       severity: 'low'
     });
   }
 
   // 6. API Structure Overview
-  const apiFiles = nodes.filter(n => n.id.includes('/api/') || n.id.includes('routes'));
+  const apiFiles = nodes.filter(n => 
+    n.id.toLowerCase().includes('/api/') || 
+    n.id.toLowerCase().includes('routes') || 
+    n.id.toLowerCase().includes('controller')
+  );
   if (apiFiles.length > 0) {
     insights.push({
       type: 'api',
