@@ -218,12 +218,19 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
           <button onClick={() => navigate('/')} className="p-1.5 rounded-lg hover:bg-white/5 text-[#8b949e] hover:text-white transition-colors" title="Back to home">
             <ArrowLeft className="w-4 h-4" />
           </button>
+<<<<<<< HEAD
           <div className="w-8 h-8 rounded border border-white/10 bg-black/50 flex shadow-inner backdrop-blur-sm p-1">
             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-sm" />
           </div>
           <div className="hidden sm:block">
             <span className="font-extrabold text-[15px] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-[#8b949e]">Codebase Cipher</span>
             <span className="text-[9px] ml-2 px-2 py-0.5 rounded-full border border-[#58a6ff]/30 bg-[#58a6ff]/10 text-[#58a6ff] font-mono tracking-widest font-semibold uppercase">v2.0 PWA</span>
+=======
+          <GitBranch className="w-5 h-5 text-primary" />
+          <div>
+            <span className="font-bold text-sm text-foreground">Codebase Cipher</span>
+            <span className="text-[9px] ml-1.5 px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">v3.0</span>
+>>>>>>> origin/main
           </div>
         </div>
         {repoInfo && (
@@ -241,6 +248,17 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
             )}
           </>
         )}
+<<<<<<< HEAD
+=======
+        {analysis.metrics && (
+          <span className="ml-3 text-[10px] text-muted-foreground">
+            ⚡ {(analysis.metrics.duration / 1000).toFixed(1)}s
+            {analysis.metrics.cached && ' (cached)'}
+            {analysis.metrics.flowsCount > 0 && ` • ${analysis.metrics.flowsCount} flows`}
+            {analysis.metrics.dbInteractionsCount > 0 && ` • ${analysis.metrics.dbInteractionsCount} DB ops`}
+          </span>
+        )}
+>>>>>>> origin/main
         <div className="flex-1" />
         
         {/* Mobile View Toggle */}
@@ -292,6 +310,7 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
         )}
       </header>
 
+<<<<<<< HEAD
       <div className="flex flex-1 overflow-hidden relative z-10 w-full h-[calc(100vh-52px)]">
         {/* Left Panel - File Drawer */}
         <div className={`
@@ -323,6 +342,20 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
         `}>
            <RightPanel selectedFile={selectedFile} files={files} isDemo={isDemo} repoName={repoName} nodes={flowNodes} edges={flowEdges} />
         </div>
+=======
+      <div className="flex flex-1 overflow-hidden">
+        <LeftPanel files={analysis.files} progress={analysis.progress} loading={analysis.loading}
+          onAnalyze={handleAnalyze} onLoadDemo={handleLoadDemo} onSelectFile={setSelectedFile} selectedFile={selectedFile} />
+        <CenterPanel nodes={flowNodes} edges={flowEdges} endpoints={analysis.endpoints}
+          functionMap={analysis.functionMap} metrics={analysis.metrics}
+          dbInteractions={analysis.dbInteractions}
+          executionFlows={analysis.executionFlows}
+          dbFrameworks={analysis.dbFrameworks}
+          layers={analysis.layers}
+          selectedFile={selectedFile}
+          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={setSelectedFile} hasData={hasData} />
+        <RightPanel selectedFile={selectedFile} files={analysis.files} isDemo={analysis.isDemo} repoName={repoName} />
+>>>>>>> origin/main
       </div>
 
       {showShareModal && (

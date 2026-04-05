@@ -78,6 +78,8 @@ export default function InsightsPanel({ nodes, edges, functionMap, metrics, onSe
           <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
             <span>🔧 Functions: {metrics.functionsCount}</span>
             <span>🌐 Endpoints: {metrics.endpointsCount}</span>
+            {metrics.dbInteractionsCount > 0 && <span>🗄️ DB Ops: {metrics.dbInteractionsCount}</span>}
+            {metrics.flowsCount > 0 && <span>🔀 Flows: {metrics.flowsCount}</span>}
             {metrics.cached && <span className="text-primary">⚡ Served from cache</span>}
           </div>
         </div>
