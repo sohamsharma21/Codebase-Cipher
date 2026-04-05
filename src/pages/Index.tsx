@@ -303,29 +303,34 @@ Content preview: ${fileData.content?.slice(0, 500) || 'no content'}`;
       <div className="flex flex-1 relative z-10 w-full min-h-[calc(100vh-52px)]">
         {/* Left Panel - File Drawer */}
         <div className={`
-           absolute sm:relative z-20 sm:z-0 h-full w-full sm:w-auto shrink-0 transition-transform duration-300
+           fixed sm:relative inset-y-0 left-0 z-40 sm:z-0 w-[85%] sm:w-auto shrink-0 transition-transform duration-300 ease-in-out
            ${mobilePanel === 'left' ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'}
-           sm:flex sm:flex-col
+           sm:flex sm:flex-col border-r border-[#30363d]
         `}>
            <LeftPanel files={files} progress={progress} loading={loading}
              onAnalyze={handleAnalyze} onLoadDemo={handleLoadDemo} onSelectFile={setSelectedFile} selectedFile={selectedFile} />
         </div>
 
         {/* Center Panel - Graph Canvas */}
-        <div className={`
-           flex-1 h-full w-full absolute sm:relative transition-opacity duration-300
-           ${mobilePanel === 'center' || window.innerWidth >= 640 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none sm:pointer-events-auto sm:opacity-100'}
-        `}>
+        <div className="flex-1 h-full w-full relative">
            <CenterPanel files={files} nodes={flowNodes} edges={flowEdges} endpoints={endpoints}
              functionMap={functionMap} metrics={metrics}
              selectedFile={selectedFile}
              onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={setSelectedFile} onClearSelection={handleClearSelection} hasData={hasData}
              loading={loading} progress={progress} currentFile={currentFile} repoName={repoName} />
+           
+           {/* Mobile Drawer Overlay */}
+           {(mobilePanel === 'left' || mobilePanel === 'right') && (
+             <div 
+               className="sm:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity"
+               onClick={() => setMobilePanel('center')}
+             />
+           )}
         </div>
         
         {/* Right Panel - Active Intelligence Tab */}
         <div className={`
-           absolute sm:relative z-20 sm:z-0 right-0 w-full sm:w-[360px] lg:w-[400px] shrink-0 transition-transform duration-300
+           fixed sm:relative inset-y-0 right-0 z-40 sm:z-0 w-[85%] sm:w-[360px] lg:w-[400px] shrink-0 transition-transform duration-300 ease-in-out
            ${mobilePanel === 'right' ? 'translate-x-0' : 'translate-x-full sm:translate-x-0'}
            bg-[#0d1117] border-l border-[#30363d] sm:min-h-full
         `}>

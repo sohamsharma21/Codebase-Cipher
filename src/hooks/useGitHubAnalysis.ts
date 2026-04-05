@@ -261,6 +261,23 @@ export function useGitHubAnalysis() {
            }
         }));
 
+        // Fallback Graph Generation logic
+        const fallbackNodes = allFiles.map(f => ({ id: f.path, type: 'fileNode', data: { label: f.path.split('/').pop(), filePath: f.path } }));
+        const fallbackEdges: any[] = [];
+        const fileList = allFiles.map(f => f.path);
+        
+        allFiles.forEach(f => {
+           if (f.content) {
+              const imports = parseImports(f.content, f.path);
+              imports.forEach(imp => {
+                 const resolved = resolveImportPath(f.path, imp.target, fileList);
+                 if (resolved) {
+                    fallbackEdges.push({ id: `e-${f.path}-${resolved}`, source: f.path, target: resolved });
+                 }
+              });
+           }
+        });
+
         data = {
            repoInfo: {
                owner: parsed.owner,
@@ -271,6 +288,8 @@ export function useGitHubAnalysis() {
                defaultBranch: branch
            },
            allFiles,
+           nodes: fallbackNodes,
+           edges: fallbackEdges,
            endpoints: [],
            functionMap: {},
            dbInteractions: [],
