@@ -208,12 +208,77 @@ export function useGitHubAnalysis() {
     try {
       setProgress({ step: 2, message: 'Fetching file tree from GitHub...', done: false });
 
-      const { data, error } = await supabase.functions.invoke('analyze-repo', {
-        body: { owner: parsed.owner, repo: parsed.repo },
-      });
+      let data: any = {};
+      try {
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('analyze-repo', {
+          body: { owner: parsed.owner, repo: parsed.repo },
+        });
 
-      if (error) throw new Error(error.message || 'Analysis failed');
-      if (data.error) throw new Error(data.error);
+        if (edgeError) throw edgeError;
+        if (edgeData?.error) throw new Error(edgeData.error);
+        data = edgeData;
+        
+      } catch (err: any) {
+        console.warn('Edge function failed, falling back to client-side GitHub API:', err.message);
+        setProgress({ step: 2, message: 'Edge Function unavailable. Using GitHub REST API fallback...', done: false });
+        
+        // Fetch repo metadata
+        const metaRes = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`);
+        if (!metaRes.ok) throw new Error('GitHub repository not found or API limits exceeded.');
+        const metaInfo = await metaRes.json();
+        const branch = metaInfo.default_branch;
+
+        // Fetch repo tree
+        const treeRes = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${branch}?recursive=1`);
+        if (!treeRes.ok) throw new Error('Failed to fetch repository file tree.');
+        const treeData = await treeRes.json();
+
+        // Filter and limit to most important code files (avoiding huge requests)
+        const filePaths = (treeData.tree || []).filter((f: any) => 
+            f.type === 'blob' && 
+            !f.path.includes('node_modules/') && 
+            !f.path.includes('.git/') && 
+            !f.path.includes('dist/') &&
+            !f.path.includes('build/') &&
+            !f.path.includes('package-lock.json') &&
+            f.size < 100000 
+        );
+        
+        const focusFiles = filePaths.slice(0, 45); // Limit so client side doesn't freeze or hit rate limits massively
+        const allFiles: RepoFile[] = [];
+        
+        setProgress({ step: 3, message: `Fetching ${focusFiles.length} files from GitHub directly...`, done: false });
+        
+        await Promise.all(focusFiles.map(async (f: any) => {
+           try {
+               const raw = await fetch(`https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${branch}/${f.path}`);
+               if (raw.ok) {
+                   const content = await raw.text();
+                   allFiles.push({ path: f.path, type: 'blob', size: f.size, content });
+               }
+           } catch(e) {
+               console.warn(`Failed to fetch ${f.path}`);
+           }
+        }));
+
+        data = {
+           repoInfo: {
+               owner: parsed.owner,
+               repo: parsed.repo,
+               stars: metaInfo.stargazers_count,
+               description: metaInfo.description,
+               language: metaInfo.language,
+               defaultBranch: branch
+           },
+           allFiles,
+           endpoints: [],
+           functionMap: {},
+           dbInteractions: [],
+           executionFlows: [],
+           dbFrameworks: [],
+           layers: { frontend: [], backend: [], database: [], middleware: [], config: [] }
+        };
+      }
 
       setProgress({ step: 3, message: 'Parsing imports and dependencies...', done: false });
 
@@ -227,7 +292,7 @@ export function useGitHubAnalysis() {
       });
 
       const allFiles: RepoFile[] = (data.allFiles || []).map((f: any) => ({
-        path: f.path, type: f.type || 'blob', size: f.size,
+        path: f.path, type: f.type || 'blob', size: f.size, content: f.content,
       }));
       setFiles(allFiles);
       setEndpoints(data.endpoints || []);
