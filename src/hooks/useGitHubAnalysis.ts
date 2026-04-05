@@ -172,12 +172,9 @@ export function useGitHubAnalysis() {
     setFiles(getDemoFiles());
     const demoNodes = getDemoNodes();
     const demoEdges = getDemoEdges();
-    // Enrich demo nodes too
-    const inDeg: Record<string, number> = {};
-    demoNodes.forEach(n => { inDeg[n.id] = 0; });
-    demoEdges.forEach(e => { if (inDeg[e.target] !== undefined) inDeg[e.target]++; });
-    setNodes(buildEnrichedNodes(demoNodes, demoEdges));
-    setEdges(buildEnrichedEdges(demoEdges, inDeg));
+    const { nodes: enrichedNodes, edges: enrichedEdges } = buildWorkflowGraph(demoNodes, demoEdges, getDemoFiles());
+    setNodes(enrichedNodes);
+    setEdges(enrichedEdges);
     setEndpoints(getDemoEndpoints());
     setFunctionMap({});
     setDbInteractions([]);
@@ -234,15 +231,11 @@ export function useGitHubAnalysis() {
       }));
       setFiles(allFiles);
       setEndpoints(data.endpoints || []);
-<<<<<<< HEAD
-      setFunctionMap(data.functionMap || []);
-=======
       setFunctionMap(data.functionMap || {});
       setDbInteractions(data.dbInteractions || []);
       setExecutionFlows(data.executionFlows || []);
       setDbFrameworks(data.dbFrameworks || []);
       setLayers(data.layers || { frontend: [], backend: [], database: [], middleware: [], config: [] });
->>>>>>> origin/main
 
       // Show "currently reading" last files
       const codeFiles = allFiles.filter(f => f.type === 'blob' && /\.(js|ts|jsx|tsx|mjs)$/.test(f.path));
@@ -250,27 +243,8 @@ export function useGitHubAnalysis() {
         setCurrentFile(codeFiles[codeFiles.length - 1].path);
       }
 
-<<<<<<< HEAD
-      setProgress({ step: 4, message: 'Building hierarchical dependency graph...', done: false });
-
       const rawNodes = data.nodes || [];
       const rawEdges = data.edges || [];
-=======
-      const serverNodes = (data.nodes || []).map((n: any, i: number) => ({
-        id: n.id,
-        type: 'fileNode',
-        position: { x: (i % 8) * 220, y: Math.floor(i / 8) * 120 },
-        data: { label: n.data?.label || n.id, filePath: n.data?.filePath || n.id, role: n.data?.role || 'utility' },
-      }));
-
-      const serverEdges: Edge[] = (data.edges || []).map((e: any) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        animated: true,
-        edgeType: e.edgeType || 'import',
-      }));
->>>>>>> origin/main
 
       // Architecture detect
       const pkgFile = allFiles.find(f => f.path.endsWith('package.json'))?.content;
@@ -349,12 +323,8 @@ export function useGitHubAnalysis() {
 
   return {
     files, nodes, edges, endpoints, functionMap, repoInfo,
-<<<<<<< HEAD
     loading, progress, isDemo, metrics, currentFile,
-=======
-    dbInteractions, executionFlows, dbFrameworks, layers,
-    loading, progress, isDemo, metrics,
->>>>>>> origin/main
+    dbOps, routes, architecture, dbInteractions, executionFlows, dbFrameworks, layers,
     analyze, loadDemo, setNodes, setEdges,
   };
 }
