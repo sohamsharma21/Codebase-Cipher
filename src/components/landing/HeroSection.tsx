@@ -34,16 +34,15 @@ export default function HeroSection() {
               <span className="text-xs text-primary font-medium">AI-Powered Codebase Analysis</span>
             </motion.div>
 
-            <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.05] tracking-tight text-foreground mb-6">
-              Understand Any{' '}
+            <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.05] tracking-tight text-foreground mb-6 transition-all duration-500">
+              AI GitHub <br/>
               <span className="bg-gradient-to-r from-primary via-purple to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradient_3s_linear_infinite]">
-                Codebase
-              </span>{' '}
-              in Seconds
+                Repository Analyzer
+              </span>
             </h1>
 
-            <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
-              Paste any GitHub repository URL and instantly visualize its structure, dependencies, APIs, and logic — powered by AI.
+            <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg transition-all duration-300">
+              Instantly understand any GitHub repository with AI — explore architecture, tech stack, and codebase structure in seconds.
             </p>
 
             <div className="flex flex-wrap gap-4">

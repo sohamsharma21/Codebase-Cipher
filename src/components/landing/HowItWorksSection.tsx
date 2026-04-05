@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Link2, Cpu, BarChart3 } from 'lucide-react';
 
 const steps = [
-  { icon: Link2, num: '01', title: 'Paste GitHub URL', desc: 'Drop any public repository link into the search bar.' },
+  { icon: Link2, num: '01', title: 'Paste GitHub URL', desc: 'No setup. Paste a URL. Works with public repos; sign in for private.' },
   { icon: Cpu, num: '02', title: 'AI Analyzes Codebase', desc: 'Our engine parses every file, import, and export.' },
   { icon: BarChart3, num: '03', title: 'Explore Visual Graph', desc: 'Navigate an interactive map with AI explanations.' },
 ];

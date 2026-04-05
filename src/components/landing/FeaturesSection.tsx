@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
-import { Network, FolderTree, Globe, GitFork, Brain, MousePointerClick } from 'lucide-react';
+import { Network, Code, Globe, GitFork, Brain, MousePointerClick } from 'lucide-react';
 
 const features = [
-  { icon: Network, title: 'Dependency Graph', desc: 'Visual map of file relationships and imports' },
-  { icon: FolderTree, title: 'Folder Structure Explorer', desc: 'Interactive tree view of the entire repo' },
-  { icon: Globe, title: 'API Endpoint Detection', desc: 'Automatically finds REST APIs and routes' },
-  { icon: GitFork, title: 'Function Call Mapping', desc: 'Understand how logic flows between files' },
-  { icon: Brain, title: 'AI Code Explanation', desc: 'Explain any file in plain English instantly' },
-  { icon: MousePointerClick, title: 'Smart Navigation', desc: 'Click any node to jump to source code' },
+  { icon: Network, title: 'Instant Summaries', desc: 'Repo overview and visual map in seconds' },
+  { icon: Globe, title: 'API Discovery', desc: 'Automatically finds REST APIs and routes' },
+  { icon: Brain, title: 'AI Codebase Analysis', desc: 'GitHub project structure · Open source repository understanding' },
+  { icon: Code, title: 'AI Chat', desc: 'Ask questions about the code and get answers with sources' },
+  { icon: GitFork, title: 'Dependency Map', desc: 'Visual map of file relationships and imports' },
+  { icon: MousePointerClick, title: 'Pro Navigation', desc: 'Click any node to jump to source code' },
 ];
 
 export default function FeaturesSection() {
