@@ -4,13 +4,15 @@ import {
   type Node, type Edge, type OnNodesChange, type OnEdgesChange, type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ZoomIn, ZoomOut, Maximize2, Network, Globe, Activity, Filter, X, AlertTriangle, Search, Expand, Shrink, Crosshair, Lightbulb, Code2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Network, Globe, Activity, Filter, X, AlertTriangle, Search, Expand, Shrink, Crosshair, Lightbulb, Code2, Route } from 'lucide-react';
 import CustomNode from './CustomNode';
 import ClusterNode from './ClusterNode';
 import HealthReport from './HealthReport';
 import InsightsPanel from './InsightsPanel';
 import FunctionCallMap from './FunctionCallMap';
-import type { APIEndpoint, ParsedFunction, PerformanceMetrics } from '@/types';
+import FlowPanel from './FlowPanel';
+import FlowDetailsPanel from './FlowDetailsPanel';
+import type { APIEndpoint, ParsedFunction, PerformanceMetrics, DatabaseInteraction, ExecutionFlow, ArchitectureLayers, EdgeType } from '@/types';
 import { detectCircularDeps, calculateHealth, type CycleInfo, type HealthStats } from '@/lib/graphUtils';
 import { useClusteredGraph } from '@/hooks/useClusteredGraph';
 
@@ -20,6 +22,10 @@ interface CenterPanelProps {
   endpoints: APIEndpoint[];
   functionMap: Record<string, ParsedFunction[]>;
   metrics: PerformanceMetrics | null;
+  dbInteractions: DatabaseInteraction[];
+  executionFlows: ExecutionFlow[];
+  dbFrameworks: string[];
+  layers: ArchitectureLayers;
   selectedFile?: string;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
@@ -31,6 +37,14 @@ const nodeTypes = { fileNode: CustomNode, clusterNode: ClusterNode };
 
 const methodColors: Record<string, string> = {
   GET: '#3fb950', POST: '#58a6ff', PUT: '#d29922', DELETE: '#f85149', PATCH: '#bc8cff',
+};
+
+const edgeTypeColors: Record<EdgeType, string> = {
+  import: 'hsl(var(--border))',
+  api_call: '#58a6ff',
+  db_query: '#d29922',
+  dynamic: '#bc8cff',
+  middleware: '#3fb950',
 };
 
 type FilterType = 'all' | 'js' | 'ts' | 'components' | 'circular' | 'orphan' | 'connected';
@@ -51,13 +65,14 @@ function ToolbarZoom() {
   );
 }
 
-export default function CenterPanel({ nodes, edges, endpoints, functionMap, metrics, selectedFile, onNodesChange, onEdgesChange, onNodeClick, hasData }: CenterPanelProps) {
-  const [activeTab, setActiveTab] = useState<'graph' | 'endpoints' | 'health' | 'insights' | 'functions'>('graph');
+export default function CenterPanel({ nodes, edges, endpoints, functionMap, metrics, dbInteractions, executionFlows, dbFrameworks, layers, selectedFile, onNodesChange, onEdgesChange, onNodeClick, hasData }: CenterPanelProps) {
+  const [activeTab, setActiveTab] = useState<'graph' | 'endpoints' | 'health' | 'insights' | 'functions' | 'flows'>('graph');
   const [filter, setFilter] = useState<FilterType>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [highlightCycles, setHighlightCycles] = useState(false);
   const [graphSearch, setGraphSearch] = useState('');
   const [showGraphSearch, setShowGraphSearch] = useState(false);
+  const [flowHighlightFiles, setFlowHighlightFiles] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const reactFlowInstance = useReactFlow();
 
@@ -98,6 +113,8 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
     return ids;
   }, [selectedFile, edges]);
 
+  const flowHighlightSet = useMemo(() => new Set(flowHighlightFiles), [flowHighlightFiles]);
+
   const matchingNodeIds = useMemo(() => {
     if (filter === 'all') return null;
     const ids = new Set<string>();
@@ -123,18 +140,21 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
       const isFocused = clustered.focusedNode === n.id;
       const isConnected = selectedFile ? connectedNodeIds.has(n.id) : true;
       const dimmedByFocus = selectedFile ? !isConnected : false;
+      const isFlowHighlight = flowHighlightSet.size > 0 ? flowHighlightSet.has(n.id) : false;
+      const dimmedByFlow = flowHighlightSet.size > 0 && !isFlowHighlight;
       return {
         ...n,
         selected: n.id === selectedFile,
         style: {
-          opacity: dimmedByFilter || dimmedByCycle || dimmedByFocus ? 0.15 : 1,
-          transition: 'opacity 0.3s ease, filter 0.3s ease',
+          opacity: dimmedByFilter || dimmedByCycle || dimmedByFocus || dimmedByFlow ? 0.12 : 1,
+          transition: 'opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease',
           ...(isCycle ? { filter: 'drop-shadow(0 0 8px #f85149)' } : {}),
           ...(isFocused ? { filter: 'drop-shadow(0 0 12px hsl(var(--primary)))' } : {}),
+          ...(isFlowHighlight ? { filter: 'drop-shadow(0 0 10px hsl(var(--green)))' } : {}),
         },
       };
     }),
-    [clustered.visibleNodes, selectedFile, cycleNodeIds, matchingNodeIds, highlightCycles, clustered.focusedNode, connectedNodeIds]
+    [clustered.visibleNodes, selectedFile, cycleNodeIds, matchingNodeIds, highlightCycles, clustered.focusedNode, connectedNodeIds, flowHighlightSet]
   );
 
   const styledEdges = useMemo(() =>
@@ -144,18 +164,25 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
       const dimmed = highlightCycles && !isCycle;
       const isConnectedEdge = selectedFile ? (e.source === selectedFile || e.target === selectedFile) : true;
       const dimmedByFocus = selectedFile ? !isConnectedEdge : false;
+      const edgeType: EdgeType = (e as any).edgeType || 'import';
+      const typeColor = edgeTypeColors[edgeType];
+      const isFlowEdge = flowHighlightSet.size > 0 && flowHighlightSet.has(e.source) && flowHighlightSet.has(e.target);
+      const dimmedByFlow = flowHighlightSet.size > 0 && !isFlowEdge;
+
       return {
         ...e,
         style: {
-          stroke: isCycle ? '#f85149' : isSelected ? '#58a6ff' : 'hsl(var(--border))',
-          strokeWidth: isCycle ? 2.5 : isSelected ? 2 : 1,
-          opacity: dimmed || dimmedByFocus ? 0.08 : 1,
+          stroke: isCycle ? '#f85149' : isSelected ? '#58a6ff' : isFlowEdge ? 'hsl(var(--green))' : typeColor,
+          strokeWidth: isCycle ? 2.5 : isSelected ? 2 : isFlowEdge ? 2 : edgeType !== 'import' ? 1.5 : 1,
+          opacity: dimmed || dimmedByFocus || dimmedByFlow ? 0.06 : 1,
+          strokeDasharray: edgeType === 'dynamic' ? '6 3' : undefined,
           transition: 'opacity 0.3s ease, stroke 0.3s ease',
         },
-        markerEnd: { type: 'arrowclosed' as const, color: isCycle ? '#f85149' : isSelected ? '#58a6ff' : 'hsl(var(--border))' },
+        animated: isFlowEdge || isCycle,
+        markerEnd: { type: 'arrowclosed' as const, color: isCycle ? '#f85149' : isSelected ? '#58a6ff' : isFlowEdge ? 'hsl(var(--green))' : typeColor },
       };
     }),
-    [clustered.visibleEdges, selectedFile, cycleEdgeIds, highlightCycles]
+    [clustered.visibleEdges, selectedFile, cycleEdgeIds, highlightCycles, flowHighlightSet]
   );
 
   const handleNodeClick: NodeMouseHandler = useCallback((_event, node) => {
@@ -178,6 +205,10 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
       }
     }, 200);
   }, [clustered, onNodeClick, reactFlowInstance]);
+
+  const handleHighlightFlow = useCallback((fileIds: string[]) => {
+    setFlowHighlightFiles(fileIds);
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -220,6 +251,7 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
 
   const tabs = [
     { id: 'graph' as const, label: 'Graph', icon: Network },
+    { id: 'flows' as const, label: 'Flows', icon: Route },
     { id: 'endpoints' as const, label: 'APIs', icon: Globe },
     { id: 'functions' as const, label: 'Functions', icon: Code2 },
     { id: 'insights' as const, label: 'Insights', icon: Lightbulb },
@@ -234,6 +266,9 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={`px-2.5 py-1 text-xs rounded-md transition-colors flex items-center gap-1 ${activeTab === t.id ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
             <t.icon className="w-3 h-3" />{t.label}
+            {t.id === 'flows' && executionFlows.length > 0 && (
+              <span className="text-[9px] px-1 py-0 rounded-full bg-[hsl(var(--green))]/20 text-[hsl(var(--green))]">{executionFlows.length}</span>
+            )}
           </button>
         ))}
 
@@ -241,6 +276,21 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
 
         {activeTab === 'graph' && (
           <>
+            {/* Edge type legend */}
+            <div className="hidden lg:flex items-center gap-2 mr-2">
+              {[
+                { type: 'import', label: 'Import', color: edgeTypeColors.import },
+                { type: 'api_call', label: 'API', color: edgeTypeColors.api_call },
+                { type: 'db_query', label: 'DB', color: edgeTypeColors.db_query },
+                { type: 'dynamic', label: 'Dynamic', color: edgeTypeColors.dynamic },
+              ].map(l => (
+                <span key={l.type} className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                  <span className="w-3 h-0.5 rounded" style={{ background: l.color }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+
             <button
               onClick={() => { setShowGraphSearch(prev => !prev); setTimeout(() => searchInputRef.current?.focus(), 50); }}
               className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -253,6 +303,13 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
               <button onClick={() => onNodeClick('')}
                 className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary" title="Clear focus">
                 <Crosshair className="w-3 h-3" />Focus <X className="w-3 h-3" />
+              </button>
+            )}
+
+            {flowHighlightFiles.length > 0 && (
+              <button onClick={() => setFlowHighlightFiles([])}
+                className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[hsl(var(--green))]/20 text-[hsl(var(--green))]" title="Clear flow highlight">
+                Flow <X className="w-3 h-3" />
               </button>
             )}
 
@@ -331,37 +388,59 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
       )}
 
       {activeTab === 'graph' ? (
-        <div className="flex-1">
-          <ReactFlow
-            nodes={styledNodes}
-            edges={styledEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={handleNodeClick}
-            nodeTypes={nodeTypes}
-            fitView
-            minZoom={0.02}
-            maxZoom={4}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-              animated: false,
-              style: { strokeWidth: 1 },
-            }}
-            nodesDraggable
-            nodesConnectable={false}
-            elementsSelectable
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background color="hsl(var(--border))" gap={24} size={1} />
-            <MiniMap
-              nodeColor={(node) => node.type === 'clusterNode' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
-              maskColor="hsl(var(--background) / 0.8)"
-              style={{ background: 'hsl(var(--card))', borderRadius: 8, border: '1px solid hsl(var(--border))' }}
-              pannable
-              zoomable
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1">
+            <ReactFlow
+              nodes={styledNodes}
+              edges={styledEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              nodeTypes={nodeTypes}
+              fitView
+              minZoom={0.02}
+              maxZoom={4}
+              defaultEdgeOptions={{
+                type: 'smoothstep',
+                animated: false,
+                style: { strokeWidth: 1 },
+              }}
+              nodesDraggable
+              nodesConnectable={false}
+              elementsSelectable
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="hsl(var(--border))" gap={24} size={1} />
+              <MiniMap
+                nodeColor={(node) => node.type === 'clusterNode' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+                maskColor="hsl(var(--background) / 0.8)"
+                style={{ background: 'hsl(var(--card))', borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                pannable
+                zoomable
+              />
+            </ReactFlow>
+          </div>
+          {/* Flow details for selected node */}
+          {selectedFile && (
+            <FlowDetailsPanel
+              selectedFile={selectedFile}
+              nodes={nodes}
+              edges={edges}
+              dbInteractions={dbInteractions}
+              executionFlows={executionFlows}
+              onSelectFile={onNodeClick}
             />
-          </ReactFlow>
+          )}
         </div>
+      ) : activeTab === 'flows' ? (
+        <FlowPanel
+          flows={executionFlows}
+          dbInteractions={dbInteractions}
+          dbFrameworks={dbFrameworks}
+          layers={layers}
+          onSelectFile={onNodeClick}
+          onHighlightFlow={handleHighlightFlow}
+        />
       ) : activeTab === 'endpoints' ? (
         <div className="flex-1 overflow-y-auto p-4">
           {endpoints.length > 0 ? (
