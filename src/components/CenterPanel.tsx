@@ -340,15 +340,25 @@ export default function CenterPanel({ nodes, edges, endpoints, functionMap, metr
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
             fitView
-            minZoom={0.05}
-            maxZoom={3}
+            minZoom={0.02}
+            maxZoom={4}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              animated: false,
+              style: { strokeWidth: 1 },
+            }}
+            nodesDraggable
+            nodesConnectable={false}
+            elementsSelectable
             proOptions={{ hideAttribution: true }}
           >
-            <Background color="#21262d" gap={20} size={1} />
+            <Background color="hsl(var(--border))" gap={24} size={1} />
             <MiniMap
-              nodeColor={(node) => node.type === 'clusterNode' ? 'hsl(var(--primary))' : '#30363d'}
-              maskColor="rgba(0,0,0,0.7)"
-              style={{ background: '#161b22', borderRadius: 8 }}
+              nodeColor={(node) => node.type === 'clusterNode' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+              maskColor="hsl(var(--background) / 0.8)"
+              style={{ background: 'hsl(var(--card))', borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+              pannable
+              zoomable
             />
           </ReactFlow>
         </div>
