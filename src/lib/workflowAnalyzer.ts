@@ -52,13 +52,12 @@ export const ENTITY_TYPES: Record<string, Omit<FileEntity, 'path' | 'type'> & { 
     detect: ['index.js', 'main.js', 'app.js', 'server.js', 'index.ts', 'main.ts', 'server.ts', 'app.ts'],
     color: '#d29922', layer: 0, icon: '⚡', label: 'Entry Point'
   },
-  // HTTP Layer
   API_ROUTE: {
-    detect: /\\.(get|post|put|delete|patch)\\s*\\(/,
+    detect: /\.(get|post|put|delete|patch)\s*\(/,
     color: '#58a6ff', layer: 1, icon: '🔗', label: 'API Route'
   },
   MIDDLEWARE: {
-    detect: /app\\.use\\(|router\\.use\\(|middleware/i,
+    detect: /app\.use\(|router\.use\(|middleware/i,
     color: '#a371f7', layer: 1, icon: '🔒', label: 'Middleware'
   },
   // Business Logic
@@ -67,7 +66,7 @@ export const ENTITY_TYPES: Record<string, Omit<FileEntity, 'path' | 'type'> & { 
     color: '#3fb950', layer: 2, icon: '⚙️', label: 'Controller'
   },
   SERVICE: {
-    detect: /service|Service|\\.service\\./,
+    detect: /service|Service|\.service\./,
     color: '#3fb950', layer: 2, icon: '🔧', label: 'Service'
   },
   // Data Layer
@@ -81,24 +80,24 @@ export const ENTITY_TYPES: Record<string, Omit<FileEntity, 'path' | 'type'> & { 
   },
   // React/Frontend Layer
   PAGE: {
-    detect: /pages\\/|app\\/.*page\\.|\\.page\\./,
+    detect: /pages\/|app\/.*page\.|\.page\./,
     color: '#61dafb', layer: 0, icon: '📄', label: 'Page'
   },
   COMPONENT: {
-    detect: /components\\/|\\.component\\.|return.*jsx|return.*tsx/,
+    detect: /components\/|\.component\.|return.*jsx|return.*tsx/,
     color: '#61dafb', layer: 1, icon: '🧩', label: 'Component'
   },
   HOOK: {
-    detect: /^use[A-Z]|hooks\\//,
+    detect: /^use[A-Z]|hooks\//,
     color: '#a371f7', layer: 2, icon: '🪝', label: 'Custom Hook'
   },
   // Utilities
   CONFIG: {
-    detect: /config|\\.env|settings/i,
+    detect: /config|\.env|settings/i,
     color: '#8b949e', layer: 0, icon: '⚙️', label: 'Config'
   },
   UTILITY: {
-    detect: /utils|helpers|lib\\//,
+    detect: /utils|helpers|lib\//,
     color: '#8b949e', layer: 3, icon: '🔨', label: 'Utility'
   },
   AUTH: {
@@ -157,14 +156,14 @@ export function extractEntity(filePath: string, fileContent: string): FileEntity
 
 export function extractRoutes(fileContent: string, filePath: string): RouteDef[] {
   const routes: RouteDef[] = [];
-  const expressPattern = /(app|router)\\.(get|post|put|delete|patch)\\s*\\(\\s*['"\`]([^'"\`]+)['"\`]/g;
+  const expressPattern = /(app|router)\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/g;
   
   if (filePath.includes('/api/')) {
-    const methods = fileContent.match(/export\\s+(async\\s+)?function\\s+(GET|POST|PUT|DELETE|PATCH)/g);
+    const methods = fileContent.match(/export\s+(async\s+)?function\s+(GET|POST|PUT|DELETE|PATCH)/g);
     if (methods) {
       routes.push({
         method: methods[0].match(/(GET|POST|PUT|DELETE|PATCH)/)![0],
-        path: filePath.replace(/.*\\/pages\\/api/, '/api').replace(/\\..*$/, ''),
+        path: filePath.replace(/.*\/pages\/api/, '/api').replace(/\..*$/, ''),
         file: filePath,
         line: 1
       });
@@ -177,7 +176,7 @@ export function extractRoutes(fileContent: string, filePath: string): RouteDef[]
       method: match[2].toUpperCase(),
       path: match[3],
       file: filePath,
-      line: fileContent.substring(0, match.index).split('\\n').length
+      line: fileContent.substring(0, match.index).split('\n').length
     });
   }
   
@@ -187,21 +186,21 @@ export function extractRoutes(fileContent: string, filePath: string): RouteDef[]
 export function extractDbOperations(fileContent: string, filePath: string): DbOperation[] {
   const ops: DbOperation[] = [];
   const mongooseOps = [
-    { pattern: /\\.find\\(/, op: 'READ', label: 'find()' },
-    { pattern: /\\.findById\\(/, op: 'READ', label: 'findById()' },
-    { pattern: /\\.findOne\\(/, op: 'READ', label: 'findOne()' },
-    { pattern: /\\.save\\(/, op: 'WRITE', label: 'save()' },
-    { pattern: /\\.create\\(/, op: 'WRITE', label: 'create()' },
-    { pattern: /\\.updateOne\\(/, op: 'UPDATE', label: 'updateOne()' },
-    { pattern: /\\.deleteOne\\(/, op: 'DELETE', label: 'deleteOne()' },
-    { pattern: /\\.aggregate\\(/, op: 'READ', label: 'aggregate()' }
+    { pattern: /\.find\(/, op: 'READ', label: 'find()' },
+    { pattern: /\.findById\(/, op: 'READ', label: 'findById()' },
+    { pattern: /\.findOne\(/, op: 'READ', label: 'findOne()' },
+    { pattern: /\.save\(/, op: 'WRITE', label: 'save()' },
+    { pattern: /\.create\(/, op: 'WRITE', label: 'create()' },
+    { pattern: /\.updateOne\(/, op: 'UPDATE', label: 'updateOne()' },
+    { pattern: /\.deleteOne\(/, op: 'DELETE', label: 'deleteOne()' },
+    { pattern: /\.aggregate\(/, op: 'READ', label: 'aggregate()' }
   ];
   
   const prismaOps = [
-    { pattern: /prisma\\.\\w+\\.findMany/, op: 'READ', label: 'findMany' },
-    { pattern: /prisma\\.\\w+\\.create/, op: 'WRITE', label: 'create' },
-    { pattern: /prisma\\.\\w+\\.update/, op: 'UPDATE', label: 'update' },
-    { pattern: /prisma\\.\\w+\\.delete/, op: 'DELETE', label: 'delete' }
+    { pattern: /prisma\.\w+\.findMany/, op: 'READ', label: 'findMany' },
+    { pattern: /prisma\.\w+\.create/, op: 'WRITE', label: 'create' },
+    { pattern: /prisma\.\w+\.update/, op: 'UPDATE', label: 'update' },
+    { pattern: /prisma\.\w+\.delete/, op: 'DELETE', label: 'delete' }
   ];
   
   [...mongooseOps, ...prismaOps].forEach(({ pattern, op, label }) => {
